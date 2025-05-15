@@ -2,6 +2,8 @@ package com.example.ffmpegmcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema;
+import no.lau.mcp.ffmpeg.FFmpegMcpServerAdvanced;
+import no.lau.mcp.ffmpeg.FFmpegWrapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

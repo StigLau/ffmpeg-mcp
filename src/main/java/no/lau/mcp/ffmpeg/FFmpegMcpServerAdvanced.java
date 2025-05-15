@@ -1,4 +1,4 @@
-package com.example.ffmpegmcp;
+package no.lau.mcp.ffmpeg;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServer;

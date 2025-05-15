@@ -30,7 +30,7 @@ public class FFmpegMcpCliTest {
 	 * Manual test to demonstrate how an LLM would use the server. To run this, first
 	 * start the server in one terminal:
 	 *
-	 * java -cp target/classes com.example.ffmpegmcp.Main --advanced
+	 * java -cp target/classes no.lau.mcp.Main --advanced
 	 *
 	 * Then run this test in another terminal.
 	 */

@@ -19,7 +19,7 @@
         <reactor.version>3.4.23</reactor.version> <!-- Example version, align with your project -->
         <assertj.version>3.23.1</assertj.version>
         <jackson.version>2.15.2</jackson.version>
-        <main.class>com.example.ffmpegmcp.Main</main.class>
+        <main.class>no.lau.mcp.Main</main.class>
     </properties>
 
     <dependencies>
@@ -50,10 +50,9 @@
             <version>${slf4j.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>${slf4j.version}</version>
-            <scope>runtime</scope> <!-- Using simple logger for ease of setup -->
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.11</version>
         </dependency>
 
         <!-- Testing -->
@@ -99,7 +98,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.4.1</version>
+                <version>3.6.0</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -109,7 +108,7 @@
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.example.ffmpegmcp.FFmpegMcpServerAdvanced</mainClass>
+                                    <mainClass>no.lau.mcp.ffmpeg.FFmpegMcpServerAdvanced</mainClass>
                                 </transformer>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
