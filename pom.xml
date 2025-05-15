@@ -82,6 +82,14 @@
         </dependency>
     </dependencies>
 
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub StigLau Apache Maven Packages</name>
+            <url>https://maven.pkg.github.com/StigLau/ffmpeg-mcp</url>
+        </repository>
+    </distributionManagement>
+
     <build>
         <plugins>
             <plugin>
