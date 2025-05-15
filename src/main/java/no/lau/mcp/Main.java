@@ -1,4 +1,7 @@
-package com.example.ffmpegmcp;
+package no.lau.mcp;
+
+import no.lau.mcp.ffmpeg.FFmpegMcpServer;
+import no.lau.mcp.ffmpeg.FFmpegMcpServerAdvanced;
 
 /**
  * Main class for launching the FFmpeg MCP Server. This executable class provides options
