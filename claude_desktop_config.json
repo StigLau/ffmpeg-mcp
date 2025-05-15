@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "Demo1": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--with",
+        "mcp[cli]",
+        "mcp",
+        "run",
+        "/Users/stiglau/utvikling/privat/lm-ai/mcp/python-mcp3/server.py"
+      ]
+    },
+    "ffmpeg-mcp": {
+      "command": "java",
+      "args": [
+        "-jar",
+        "/Users/stiglau/.m2/repository/io/modelcontextprotocol/sdk/ffmpeg-mcp/0.10.0-SNAPSHOT/ffmpeg-mcp-0.10.0-SNAPSHOT.jar --advanced"
+      ]
+    }
+  }
+}
