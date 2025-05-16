@@ -69,7 +69,7 @@ public class FFmpegMcpServer {
 
 		try {
 			// Log the incoming command
-			System.err.println("Executing FFmpeg command: " + command);
+			//System.err.println("Executing FFmpeg command: " + command);
 
 			// Execute the command through our wrapper
 			String result = FFmpegWrapper.performFFMPEG(command);
@@ -79,12 +79,12 @@ public class FFmpegMcpServer {
 		}
 		catch (IllegalArgumentException e) {
 			// Client error (invalid command)
-			System.err.println("Invalid FFmpeg command: " + e.getMessage());
+			//System.err.println("Invalid FFmpeg command: " + e.getMessage());
 			return CallToolResult.builder().addTextContent("Error: " + e.getMessage()).isError(true).build();
 		}
 		catch (IOException e) {
 			// FFmpeg execution error
-			System.err.println("FFmpeg execution error: " + e.getMessage());
+			//System.err.println("FFmpeg execution error: " + e.getMessage());
 			return CallToolResult.builder()
 				.addTextContent("FFmpeg execution failed: " + e.getMessage())
 				.isError(true)
@@ -92,8 +92,8 @@ public class FFmpegMcpServer {
 		}
 		catch (Exception e) {
 			// Unexpected error
-			System.err.println("Unexpected error: " + e.getMessage());
-			e.printStackTrace();
+			//System.err.println("Unexpected error: " + e.getMessage());
+			//e.printStackTrace();
 			return CallToolResult.builder().addTextContent("Unexpected error: " + e.getMessage()).isError(true).build();
 		}
 	}
@@ -102,7 +102,7 @@ public class FFmpegMcpServer {
 	 * Start the server.
 	 */
 	public void start() {
-		System.err.println("FFmpeg MCP Server started...");
+		//System.err.println("FFmpeg MCP Server started...");
 		// The server is already started when created, nothing else to do
 	}
 
