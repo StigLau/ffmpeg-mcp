@@ -127,4 +127,8 @@ This project is licensed under the same license as the parent Model Context Prot
 echo '{"type": "request", "id": "req-1", "content": {"messages": [{"role": "user", "content": "Hello"}]}}' | java -jar target/ffmpeg-0.1.1.jar
 
 echo '{"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"claude-ai","version":"0.1.0"}},"jsonrpc":"2.0","id":0}' | java -jar target/ffmpeg-0.1.1.jar
-```
+
+
+Capture both stdout and stderr to separate files:
+
+bash./mcp-server > stdout.log 2> stderr.log

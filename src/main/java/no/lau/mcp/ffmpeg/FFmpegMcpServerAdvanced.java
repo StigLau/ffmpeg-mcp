@@ -8,13 +8,9 @@ import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import no.lau.mcp.file.FileManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -112,12 +108,12 @@ public class FFmpegMcpServerAdvanced {
 
 					Use {{videoref}} as a placeholder in FFmpeg commands to reference registered videos. Other video references can be created like {{videoref_snippet1}}, which will be created.
 					""")
-			//.tool(new Tool("ffmpeg", "Execute FFmpeg commands to process video and audio files", ffmpegSchemaJson),
-		//			this::handleFFmpegCommand)
+			.tool(new Tool("ffmpeg", "Execute FFmpeg commands to process video and audio files", ffmpegSchemaJson),
+					this::handleFFmpegCommand)
 			.tool(new Tool("video_info", "Get information about a video file", videoInfoSchemaJson),
 					this::handleVideoInfo)
-			//.tool(new Tool("list_registered_videos", "List videos in storage which are registered", registerVideoSchemaJson),
-//					this::listRegisteredVideos)
+			.tool(new Tool("list_registered_videos", "List videos in storage which are registered", registerVideoSchemaJson),
+					this::listRegisteredVideos)
 			.build();
 	}
 
@@ -222,7 +218,7 @@ public class FFmpegMcpServerAdvanced {
 	 * Start the server.
 	 */
 	public void start() {
-		//System.err.println("FFmpeg MCP Server (Advanced) started...");
+		System.err.println("FFmpeg MCP Server (Advanced) started...");
 		//System.err.println("Available tools: ffmpeg, video_info, register_video");
 	}
 
@@ -263,5 +259,4 @@ public class FFmpegMcpServerAdvanced {
 			System.err.println("Server interrupted: " + e.getMessage());
 		}
 	}
-
 }
