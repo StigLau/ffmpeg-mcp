@@ -1,0 +1,48 @@
+2025-05-16 13:46:12.323 [main] INFO  no.lau.mcp.ffmpeg.FFmpegWrapper - Running command: '/usr/local/bin/ffmpeg -i /tmp/vids/wZ5.mp4 -ss 0 -t 10 -c:v copy -c:a copy {{mordi}}}}'
+2025-05-16 13:47:08.352 [main] INFO  no.lau.mcp.ffmpeg.FFmpegWrapper - Running command: '/usr/local/bin/ffmpeg -i /tmp/vids/wZ5.mp4 -ss 0 -t 10 -c:v copy -c:a copy {{mordi}}}}'
+2025-05-16 13:48:54.498 [main] INFO  no.lau.mcp.ffmpeg.FFmpegWrapper - Running command: '/usr/local/bin/ffmpeg -i /tmp/vids/wZ5.mp4 -ss 0 -t 10 -c:v copy -c:a copy /tmp/vids/wZ5.mp4}}'
+2025-05-16 14:02:12.087 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:02:24.312 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:05:08.487 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:05:08.491 [main] INFO  no.lau.mcp.file.FileManager - tempfile -> /tmp/vids/outputs/wZ5_first10sec.mp4
+2025-05-16 14:05:08.491 [main] INFO  no.lau.mcp.file.FileManager - original -> /tmp/vids/sources/wZ5.mp4
+2025-05-16 14:05:08.508 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:27:07.235 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:27:07.270 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:27:07.272 [main] ERROR no.lau.mcp.file.FileManager - No video reference found for ID: original
+2025-05-16 14:27:57.206 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:30:22.434 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:30:22.436 [main] ERROR no.lau.mcp.file.FileManager - No video reference found for ID: original
+2025-05-16 14:30:29.756 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:30:29.774 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:30:29.775 [main] ERROR no.lau.mcp.file.FileManager - No video reference found for ID: original
+2025-05-16 14:33:08.495 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:33:08.498 [main] ERROR no.lau.mcp.file.FileManager - No video reference found for ID: original
+2025-05-16 14:33:43.141 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:33:43.145 [main] ERROR no.lau.mcp.file.FileManager - No video reference found for ID: original
+2025-05-16 14:34:02.784 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:34:02.788 [main] ERROR no.lau.mcp.file.FileManager - No video reference found for ID: original
+2025-05-16 14:59:36.447 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:59:36.467 [main] DEBUG no.lau.mcp.file.FileManager - Replace in FFmpeg command: ffmpeg -i {{original}} -ss 0 -t 10 -c:v copy -c:a copy {{tempfile}}
+2025-05-16 14:59:36.468 [main] ERROR no.lau.mcp.file.FileManager - No video reference found for ID: original
+2025-05-16 18:52:13.680 [main] INFO  no.lau.mcp.file.FileManager - Found 1 files in /tmp/vids/sources
+2025-05-16 21:18:37.531 [pool-1-thread-1] ERROR i.m.s.t.StdioServerTransportProvider - Error processing inbound message
+java.lang.IllegalArgumentException: Cannot deserialize JSONRPCMessage: {"type": "request", "id": "req-1", "content": {"messages": [{"role": "user", "content": "Hello"}]}}
+	at io.modelcontextprotocol.spec.McpSchema.deserializeJsonRpcMessage(McpSchema.java:170)
+	at io.modelcontextprotocol.server.transport.StdioServerTransportProvider$StdioMcpSessionTransport.lambda$startInboundProcessing$4(StdioServerTransportProvider.java:217)
+	at reactor.core.scheduler.SchedulerTask.call(SchedulerTask.java:68)
+	at reactor.core.scheduler.SchedulerTask.call(SchedulerTask.java:28)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1095)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:619)
+	at java.base/java.lang.Thread.run(Thread.java:1447)
+2025-05-16 21:19:06.530 [pool-1-thread-1] ERROR i.m.s.t.StdioServerTransportProvider - Error processing inbound message
+java.lang.IllegalArgumentException: Cannot deserialize JSONRPCMessage: {"type": "request", "id": "req-1", "content": {"messages": [{"role": "user", "content": "Hello"}]}}
+	at io.modelcontextprotocol.spec.McpSchema.deserializeJsonRpcMessage(McpSchema.java:170)
+	at io.modelcontextprotocol.server.transport.StdioServerTransportProvider$StdioMcpSessionTransport.lambda$startInboundProcessing$4(StdioServerTransportProvider.java:217)
+	at reactor.core.scheduler.SchedulerTask.call(SchedulerTask.java:68)
+	at reactor.core.scheduler.SchedulerTask.call(SchedulerTask.java:28)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1095)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:619)
+	at java.base/java.lang.Thread.run(Thread.java:1447)
