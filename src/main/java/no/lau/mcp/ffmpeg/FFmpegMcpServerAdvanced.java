@@ -162,28 +162,27 @@ public class FFmpegMcpServerAdvanced {
 	 */
 	private CallToolResult handleVideoInfo(McpSyncServerExchange exchange, Map<String, Object> args) {
 		String videoRef = (String) args.get("videoref");
-
+		String textContent;
+		boolean isError = true;
 		try {
-			// Replace video reference if needed
-			//TODO Extraxt this function so that listing files on disk is not performed that often
 			Path resolvedVideoPath = fileManager.listFilesWithGeneratedKeys().get(videoRef);
-
-			// In a real implementation, we would use FFmpeg to get video information
-			// For this mock implementation, we'll simulate it
-			String ffmpegInfoCommand = "ffmpeg -i " + resolvedVideoPath;
-			String result = FFmpegWrapper.performFFMPEG(ffmpegInfoCommand);
-
-			return CallToolResult.builder()
-				.addTextContent("Video Information for " + videoRef + ":\n" + result)
-				.isError(false)
-				.build();
+			if(resolvedVideoPath == null) {
+				textContent = "Video reference not found: " + videoRef;
+				System.err.println("Could not find videoRef " + videoRef);
+			} else {
+				String ffmpegInfoCommand = "-i " + resolvedVideoPath;
+				String result = FFmpegWrapper.performFFMPEG(ffmpegInfoCommand);
+				textContent = "Video Information for " + videoRef + ":\n" + result;
+				isError = false;
+			}
 		}
 		catch (Exception e) {
-			return CallToolResult.builder()
-				.addTextContent("Error getting video information: " + e.getMessage())
-				.isError(true)
-				.build();
+			textContent = "Error getting video information from " + videoRef + ": " + e.getMessage();
 		}
+		return CallToolResult.builder()
+				.addTextContent(textContent)
+				.isError(isError)
+				.build();
 	}
 
 	/**

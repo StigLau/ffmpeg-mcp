@@ -1,5 +1,6 @@
 package no.lau.mcp.file;
 
+import no.lau.mcp.ffmpeg.FileHasher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,13 +85,14 @@ public class FileManager {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(sourceFolder)) {
             for (Path entry : stream) {
                 if (Files.isRegularFile(entry)) {
-                    String generatedId = UUID.randomUUID().toString();
-                    fileMap.put(generatedId, entry.toAbsolutePath());
+                    String hashBrown = FileHasher.getMd5Hash(entry);
+                    //String generatedId = UUID.randomUUID().toString();
+                    fileMap.put(hashBrown, entry.toAbsolutePath());
                 }
             }
         }
         //log.info("Found " + fileMap.size() + " files in " + sourceFolder);
-        //System.err.println("Found " + fileMap.size() + " files in " + sourceFolder);
+        System.err.println("Found " + fileMap.size() + " files in " + sourceFolder);
         return fileMap;
     }
 
