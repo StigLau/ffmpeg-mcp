@@ -11,6 +11,7 @@ import no.lau.mcp.file.FileManager;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -25,6 +26,7 @@ public class FFmpegMcpServerAdvanced {
 	FileManager fileManager;
 	//Logger log = LoggerFactory.getLogger(FFmpegMcpServerAdvanced.class);
 	// Track video references for better user experience
+	private final Map<String, Path> targetVideoReferences = new HashMap<>();
 
 
 	/**
@@ -94,6 +96,26 @@ public class FFmpegMcpServerAdvanced {
 				    "additionalProperties": false
 				}
 				""";
+		
+		// Add target video tool schema
+		String addTargetVideoSchemaJson = """
+				{
+				    "type": "object",
+				    "properties": {
+				        "targetName": {
+				            "type": "string",
+				            "description": "A friendly name to reference the target video by (e.g., 'output_render'). This name will be used in {{targetName}} placeholders."
+				        },
+				        "extension": {
+				            "type": "string",
+				            "description": "Optional. The desired file extension for the target video (e.g., '.mp4', '.mkv'). Defaults to '.mp4' if not provided. Must start with a dot.",
+				            "default": ".mp4"
+				        }
+				    },
+				    "required": ["targetName"],
+				    "additionalProperties": false
+				}
+				""";
 
 		// Create the server with multiple FFmpeg-related tools
 		this.server = McpServer.sync(transportProvider)
@@ -102,11 +124,13 @@ public class FFmpegMcpServerAdvanced {
 			.instructions("""
 					This server provides FFmpeg video processing capabilities. Available tools:
 
-					1. ffmpeg - Execute FFmpeg commands on video files
-					2. video_info - Get information about a video file
-					3. list_registered_videos - Register a video file with a friendly name for easy reference
+					1. ffmpeg - Execute FFmpeg commands on video files. Use {{source_id}} for source files and {{target_id}} for output files.
+					2. video_info - Get information about a source video file.
+					3. list_registered_videos - List available source videos.
+					4. addTargetVideo - Register a target video name and generate a path for an output file.
 
-					Use {{videoref}} as a placeholder in FFmpeg commands to reference registered videos. Other video references can be created like {{videoref_snippet1}}, which will be created.
+					Use {{name}} as a placeholder in FFmpeg commands to reference registered source or target videos.
+					Target video placeholders (e.g., {{target_video_1}}) must be registered using 'addTargetVideo' before use in an 'ffmpeg' command.
 					""")
 			.tool(new Tool("ffmpeg", "Execute FFmpeg commands to process video and audio files", ffmpegSchemaJson),
 					this::handleFFmpegCommand)
@@ -114,6 +138,8 @@ public class FFmpegMcpServerAdvanced {
 					this::handleVideoInfo)
 			.tool(new Tool("list_registered_videos", "List videos in storage which are registered", registerVideoSchemaJson),
 					this::listRegisteredVideos)
+			.tool(new Tool("addTargetVideo", "Registers a name and generates a filepath for a target (output) video.", addTargetVideoSchemaJson),
+					this::handleAddTargetVideo)
 			.build();
 	}
 
@@ -127,8 +153,15 @@ public class FFmpegMcpServerAdvanced {
 		String cmd = (String) args.get("command");
 
 		try {
+			// Combine source and target video references
+			Map<String, Path> allReferences = new HashMap<>();
+			if (ffmpeg.getVideoReferences() != null) {
+				allReferences.putAll(ffmpeg.getVideoReferences());
+			}
+			allReferences.putAll(this.targetVideoReferences);
+			
 			// Replace any video references in the command
-			String result = ffmpeg.doffMPEGStuff(cmd);
+			String result = ffmpeg.doffMPEGStuff(cmd, allReferences);
 
 			// Build a successful result
 			return CallToolResult.builder().addTextContent(result).isError(false).build();
@@ -211,6 +244,58 @@ public class FFmpegMcpServerAdvanced {
 		}
 	}
 
+	/**
+	 * Handle the addTargetVideo tool to register a name for a target (output) video file.
+	 * @param exchange The server exchange for communicating with the client
+	 * @param args The tool arguments containing the target name and optional extension
+	 * @return Confirmation of target video registration
+	 */
+	private CallToolResult handleAddTargetVideo(McpSyncServerExchange exchange, Map<String, Object> args) {
+		String targetName = (String) args.get("targetName");
+		String extension = (String) args.getOrDefault("extension", ".mp4"); // Default to .mp4
+
+		if (targetName == null || targetName.trim().isEmpty()) {
+			return CallToolResult.builder()
+					.addTextContent("Error: targetName cannot be empty.")
+					.isError(true)
+					.build();
+		}
+
+		if (!extension.startsWith(".")) {
+			return CallToolResult.builder()
+					.addTextContent("Error: extension must start with a dot (e.g., '.mp4').")
+					.isError(true)
+					.build();
+		}
+		
+		try {
+			Path targetPath;
+			if (".mp4".equals(extension) && args.get("extension") == null) { // Use default if not specified or specified as .mp4
+				targetPath = fileManager.createNewFileWithAutoGeneratedNameInSecondFolder();
+			} else {
+				targetPath = fileManager.createNewFileWithAutoGeneratedNameInSecondFolder(extension);
+			}
+			
+			targetVideoReferences.put(targetName, targetPath);
+
+			return CallToolResult.builder()
+					.addTextContent("Target video '" + targetName + "' registered with path: " + targetPath.toString())
+					.isError(false)
+					.build();
+		} catch (IOException e) {
+			System.err.println("Error creating target video file: " + e.getMessage());
+			return CallToolResult.builder()
+					.addTextContent("Error creating target video file: " + e.getMessage())
+					.isError(true)
+					.build();
+		} catch (IllegalArgumentException e) {
+			System.err.println("Error with target video parameters: " + e.getMessage());
+			return CallToolResult.builder()
+					.addTextContent("Error with target video parameters: " + e.getMessage())
+					.isError(true)
+					.build();
+		}
+	}
 
 
 	/**

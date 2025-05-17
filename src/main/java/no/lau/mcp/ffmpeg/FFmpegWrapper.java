@@ -37,9 +37,16 @@ public class FFmpegWrapper {
 		return videoReferences.get(videoRef);
 	}
 
+	/**
+	 * Provides access to the source video references known by this wrapper.
+	 * @return A map of source video reference names to their paths.
+	 */
+	public Map<String, Path> getVideoReferences() {
+		return this.videoReferences;
+	}
 
-	public String doffMPEGStuff(String cmd) throws IOException {
-		String command = replaceVideoReferences(cmd, videoReferences);
+	public String doffMPEGStuff(String cmd, Map<String, Path> allReferences) throws IOException {
+		String command = replaceVideoReferences(cmd, allReferences);
 
 		// Log the incoming command
 		//System.err.println("Executing FFmpeg command: " + command);
