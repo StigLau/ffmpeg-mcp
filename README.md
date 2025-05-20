@@ -120,15 +120,54 @@ This is currently a mock implementation. The FFmpegWrapper class simulates FFmpe
 3. Enhance error handling for real FFmpeg error scenarios
 4. Add real video metadata extraction for the video_info tool
 
-## License
+## Testing
 
-This project is licensed under the same license as the parent Model Context Protocol Java SDK.
+### Unit and Integration Tests
 
-echo '{"type": "request", "id": "req-1", "content": {"messages": [{"role": "user", "content": "Hello"}]}}' | java -jar target/ffmpeg-0.1.1.jar
+Run the tests using Maven:
 
-echo '{"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"claude-ai","version":"0.1.0"}},"jsonrpc":"2.0","id":0}' | java -jar target/ffmpeg-0.1.1.jar
+```bash
+mvn test
+```
 
+To run a specific test:
+
+```bash
+mvn test -Dtest=McpClientShowcaseTest
+```
+
+### Test Showcase Classes
+
+- `FFmpegMcpServerAdvancedTest`: Tests individual features of the advanced server
+- `FFmpegMcpShowcaseTest`: Showcases server functionality with direct JSON-RPC interactions
+- `McpClientShowcaseTest`: Simulates an LLM-based client interacting with the server
+
+### Known Testing Limitations
+
+The MCP server implementation (v0.10.0) has a limitation where only the initialization call works properly when using the Stdio transport in tests. Subsequent requests (tools/list, tools/call) time out without receiving responses. This appears to be an issue with how the MCP server handles stdio communications in a test environment.
+
+For a full demonstration of server capabilities, use an actual MCP client tool rather than tests.
+
+## Example JSON-RPC Commands
+
+Initialize connection:
+```
+echo '{"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"claude-ai","version":"0.1.0"}},"jsonrpc":"2.0","id":0}' | java -jar target/ffmpeg-0.1.4.jar
+```
+
+List tools:
+```
+echo '{"method":"tools/list","params":null,"jsonrpc":"2.0","id":1}' | java -jar target/ffmpeg-0.1.4.jar
+```
+
+## Running with Output Captures
 
 Capture both stdout and stderr to separate files:
 
-bash./mcp-server > stdout.log 2> stderr.log
+```bash
+java -jar target/ffmpeg-mcp.jar > stdout.log 2> stderr.log
+```
+
+## License
+
+This project is licensed under the same license as the parent Model Context Protocol Java SDK.
