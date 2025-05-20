@@ -24,8 +24,7 @@ public interface FileManager {
 
     Logger log = LoggerFactory.getLogger(FileManager.class);
     static List<String> extractIds(String text) {
-        Pattern pattern = Pattern.compile("\\{\\{([^{}]+)}}");
-        Matcher matcher = pattern.matcher(text);
+        Matcher matcher = Pattern.compile("\\{\\{([^{}]+)}}").matcher(text);
 
         List<String> ids = new ArrayList<>();
         while (matcher.find()) {
