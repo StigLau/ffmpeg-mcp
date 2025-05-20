@@ -6,7 +6,7 @@
 
     <groupId>no.lau.mcp</groupId>
     <artifactId>ffmpeg</artifactId>
-    <version>0.1.2</version>
+    <version>0.1.4</version>
     <name>FFMPEG MCP Module</name>
     <description>MCP Server and Client for FFMPEG operations</description>
 
@@ -14,7 +14,6 @@
         <java.version>23</java.version>
         <mcp.version>0.10.0</mcp.version>
         <junit.version>5.9.2</junit.version>
-        <mockito.version>4.8.1</mockito.version>
         <slf4j.version>2.0.16</slf4j.version>
         <reactor.version>3.4.23</reactor.version> <!-- Example version, align with your project -->
         <assertj.version>3.23.1</assertj.version>
@@ -76,12 +75,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>${mockito.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <version>${assertj.version}</version>
@@ -102,10 +95,15 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.10.1</version>
+                <version>3.14.0</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
+                    <!--
+                    <source>24</source>
+                    <target>24</target>
+                    <compilerArgs>- -enable-preview</compilerArgs>
+                    -->
                 </configuration>
             </plugin>
             

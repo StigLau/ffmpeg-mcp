@@ -7,13 +7,17 @@ import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
-import no.lau.mcp.file.FileManager;
+import no.lau.mcp.file.FileManagerImpl;
+
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Advanced MCP Server implementation that wraps FFmpeg functionality with multiple tools.
@@ -23,7 +27,6 @@ public class FFmpegMcpServerAdvanced {
 
 	private final McpSyncServer server;
 	FFmpegWrapper ffmpeg;
-	FileManager fileManager;
 	//Logger log = LoggerFactory.getLogger(FFmpegMcpServerAdvanced.class);
 	// Track video references for better user experience
 	private final Map<String, Path> targetVideoReferences = new HashMap<>();
@@ -32,20 +35,23 @@ public class FFmpegMcpServerAdvanced {
 	/**
 	 * Creates a new FFmpeg MCP server with the default stdio transport.
 	 */
-	public FFmpegMcpServerAdvanced() throws IOException {
-		this(new StdioServerTransportProvider(new ObjectMapper()));
-		fileManager = new FileManager("/tmp/vids/sources", "/tmp/vids/outputs");
-		//Todo move this initial listing into FileManager Object and keep functions as static
-		Map<String, Path> videoReferences = fileManager.listFilesWithGeneratedKeys();
-		ffmpeg = new FFmpegWrapper(videoReferences);
-
+	public FFmpegMcpServerAdvanced() {
+		//Wiring the app with all relevant configuration
+		this(new StdioServerTransportProvider(new ObjectMapper()),
+				new FFmpegWrapper(
+						new FileManagerImpl("/tmp/vids/sources", "/tmp/vids/outputs")
+						, new DefaultFFmpegExecutor("/usr/local/bin/ffmpeg")));
 	}
 
 	/**
-	 * Creates a new FFmpeg MCP server with a custom transport provider.
+	 * Creates a new FFmpeg MCP server with a custom transport provider and injectable dependencies for testing.
 	 * @param transportProvider The transport provider to use for MCP communication
+	 * @param ffmpegWrapperInstance The FFmpegWrapper instance to use. If null, a default one will be created.
 	 */
-	public FFmpegMcpServerAdvanced(StdioServerTransportProvider transportProvider) {
+	public FFmpegMcpServerAdvanced(StdioServerTransportProvider transportProvider, FFmpegWrapper ffmpegWrapperInstance) {
+		this.ffmpeg = ffmpegWrapperInstance;
+
+
 		// Define the JSON Schemas for the tools
 
 		// Main FFmpeg command tool schema
@@ -153,15 +159,10 @@ public class FFmpegMcpServerAdvanced {
 		String cmd = (String) args.get("command");
 
 		try {
-			// Combine source and target video references
-			Map<String, Path> allReferences = new HashMap<>();
-			if (ffmpeg.getVideoReferences() != null) {
-				allReferences.putAll(ffmpeg.getVideoReferences());
-			}
-			allReferences.putAll(this.targetVideoReferences);
-			
+			// Validate command structure to prevent direct path injection
+			validateCommandStructure(cmd);
 			// Replace any video references in the command
-			String result = ffmpeg.doffMPEGStuff(cmd, allReferences);
+			String result = ffmpeg.doffMPEGStuff(cmd);
 
 			// Build a successful result
 			return CallToolResult.builder().addTextContent(result).isError(false).build();
@@ -198,18 +199,13 @@ public class FFmpegMcpServerAdvanced {
 		String textContent;
 		boolean isError = true;
 		try {
-			Path resolvedVideoPath = fileManager.listFilesWithGeneratedKeys().get(videoRef);
-			if(resolvedVideoPath == null) {
-				textContent = "Video reference not found: " + videoRef;
-				System.err.println("Could not find videoRef " + videoRef);
-			} else {
-				String ffmpegInfoCommand = "-i " + resolvedVideoPath;
-				String result = FFmpegWrapper.performFFMPEG(ffmpegInfoCommand);
-				textContent = "Video Information for " + videoRef + ":\n" + result;
-				isError = false;
-			}
-		}
-		catch (Exception e) {
+			String rezz = ffmpeg.informationFromVideo(videoRef);
+			textContent = "Video Information for " + videoRef + ":\n" + rezz;
+			isError = false;
+		} catch (FileNotFoundException e) {
+			textContent = "Video reference not found: " + videoRef;
+			System.err.println("Could not find videoRef " + videoRef);
+		} catch (IOException e) {
 			textContent = "Error getting video information from " + videoRef + ": " + e.getMessage();
 		}
 		return CallToolResult.builder()
@@ -228,7 +224,7 @@ public class FFmpegMcpServerAdvanced {
 		//log.info("calling list_registered_videos {}", args);
 		System.err.println("calling list_registered_videos " + args);
 		try {
-			Set<String> vidIds = fileManager.listFilesWithGeneratedKeys().keySet();
+			Set<String> vidIds = ffmpeg.fileManager().listVideoReferences();
 
 			CallToolResult.Builder builder =  CallToolResult.builder();
 			for (String vidId : vidIds) {
@@ -245,6 +241,54 @@ public class FFmpegMcpServerAdvanced {
 	}
 
 	/**
+	 * Validates the FFmpeg command string to ensure no direct file/folder paths are used.
+	 * All file references must use the {{id}} placeholder syntax.
+	 *
+	 * @param command The FFmpeg command string to validate.
+	 * @throws IllegalArgumentException if the command contains direct path references.
+	 */
+	private void validateCommandStructure(String command) throws IllegalArgumentException {
+		// Replace all {{placeholder}} instances with a benign, unique marker string
+		// that does not contain path characters or typical filename patterns.
+		String commandWithoutPlaceholders = command.replaceAll("\\{\\{.*?}}", "MCP_GENERATED_PLACEHOLDER");
+
+		// 1. Check for path traversal attempts
+		if (commandWithoutPlaceholders.contains("..")) {
+			throw new IllegalArgumentException(
+					"Command contains path traversal attempt ('..'). " +
+							"All file references must use {{id}} placeholders."
+			);
+		}
+
+		// 2. Check for explicit path separators
+		if (commandWithoutPlaceholders.contains("/") || commandWithoutPlaceholders.contains("\\")) {
+			throw new IllegalArgumentException(
+					"Command contains direct path separator ('/' or '\\'). " +
+							"All file references must use {{id}} placeholders."
+			);
+		}
+
+		// 3. Check for potential direct filenames with extensions (e.g., output.mp4)
+		// This regex looks for words with a dot and 2-4 char extension.
+		Pattern filenamePattern = Pattern.compile("\\b([a-zA-Z0-9_]+(?:\\.[a-zA-Z0-9_]+)*)\\.([a-zA-Z0-9]{2,4})\\b");
+		Matcher matcher = filenamePattern.matcher(commandWithoutPlaceholders);
+		while (matcher.find()) {
+			String potentialFilename = matcher.group(0); // The full match e.g., "file.mp4" or "archive.tar.gz" (if .gz is 2-4 chars)
+			// Allow purely numeric values like "1.0", "2.5" which might be FFmpeg parameters
+			try {
+				Double.parseDouble(potentialFilename);
+				// If successful, it's a number, so continue to next match
+			} catch (NumberFormatException e) {
+				// It's not a simple number, so treat as a disallowed direct filename
+				throw new IllegalArgumentException(
+						"Command contains potential direct filename ('" + potentialFilename + "'). " +
+								"All file references must use {{id}} placeholders."
+				);
+			}
+		}
+	}
+
+	/**
 	 * Handle the addTargetVideo tool to register a name for a target (output) video file.
 	 * @param exchange The server exchange for communicating with the client
 	 * @param args The tool arguments containing the target name and optional extension
@@ -254,7 +298,7 @@ public class FFmpegMcpServerAdvanced {
 		String targetName = (String) args.get("targetName");
 		String extension = (String) args.getOrDefault("extension", ".mp4"); // Default to .mp4
 
-		if (targetName == null || targetName.trim().isEmpty()) {
+		if (targetName == null || targetName.trim().isBlank()) {
 			return CallToolResult.builder()
 					.addTextContent("Error: targetName cannot be empty.")
 					.isError(true)
@@ -269,12 +313,7 @@ public class FFmpegMcpServerAdvanced {
 		}
 		
 		try {
-			Path targetPath;
-			if (".mp4".equals(extension) && args.get("extension") == null) { // Use default if not specified or specified as .mp4
-				targetPath = fileManager.createNewFileWithAutoGeneratedNameInSecondFolder();
-			} else {
-				targetPath = fileManager.createNewFileWithAutoGeneratedNameInSecondFolder(extension);
-			}
+			Path targetPath = ffmpeg.fileManager().createNewFileWithAutoGeneratedNameInSecondFolder(extension);
 			
 			targetVideoReferences.put(targetName, targetPath);
 

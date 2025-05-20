@@ -1,6 +1,6 @@
 package no.lau.mcp.ffmpeg;
 
-import no.lau.mcp.file.FileManager;
+import no.lau.mcp.file.FileManagerImpl;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,7 +20,7 @@ public class FileManagerTest {
             System.err.println("Test Source Path: " + sourcePath);
             System.err.println("Test Destination Path: " + destPath);
 
-            FileManager fm = new FileManager(sourcePath, destPath);
+            FileManagerImpl fm = new FileManagerImpl(sourcePath, destPath);
 
             Path sourceDir = Paths.get(sourcePath);
             Path file1 = sourceDir.resolve("file1.txt");
