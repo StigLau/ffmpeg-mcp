@@ -10,6 +10,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import jakarta.inject.Inject;
+import no.lau.mcp.config.AppConfig;
 
 /**
  * Manages file operations such as listing files, creating new files with auto-generated names,
@@ -25,14 +27,16 @@ public class FileManagerImpl implements FileManager {
     static Logger log = LoggerFactory.getLogger(FileManagerImpl.class);
 
     /**
-     * Constructs a FileManager instance.
-     *
-     * @param sourceFolderPath      The path to the source folder for listing files.
-     * @param destinationFolderPath The path to the destination folder for creating new files.
+     * Constructs a FileManager instance, using AppConfig for folder paths.
+     * @param config The application configuration providing folder paths.
      * @throws IOException if an I/O error occurs when creating directories.
      * @throws IllegalArgumentException if either path is not a directory after attempting creation.
      */
-    public FileManagerImpl(String sourceFolderPath, String destinationFolderPath) {
+    @Inject
+    public FileManagerImpl(AppConfig config) {
+        String sourceFolderPath = config.getSourceFolder();
+        String destinationFolderPath = config.getOutputFolder();
+
         if (sourceFolderPath == null || sourceFolderPath.trim().isEmpty()) {
             throw new IllegalArgumentException("Source folder path cannot be null or empty.");
         }

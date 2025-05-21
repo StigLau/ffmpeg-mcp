@@ -1,5 +1,8 @@
 package no.lau.mcp.ffmpeg;
 
+import jakarta.inject.Inject;
+import no.lau.mcp.config.AppConfig;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -7,9 +10,13 @@ import java.io.InputStreamReader;
 public class DefaultFFmpegExecutor implements FFmpegExecutor {
 
     private final String ffmpegExecutablePath;
+    // Assuming AppConfig and Inject are imported. If not, add:
+    // import no.lau.mcp.config.AppConfig;
+    // import jakarta.inject.Inject;
 
-    public DefaultFFmpegExecutor(String ffmpegExecutablePath) {
-        this.ffmpegExecutablePath = ffmpegExecutablePath;
+    @Inject
+    public DefaultFFmpegExecutor(AppConfig config) {
+        this.ffmpegExecutablePath = config.getFfmpegPath();
     }
 
     @Override

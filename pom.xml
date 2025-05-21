@@ -6,7 +6,7 @@
 
     <groupId>no.lau.mcp</groupId>
     <artifactId>ffmpeg</artifactId>
-    <version>0.2.1</version>
+    <version>0.2.2</version>
     <name>FFMPEG MCP Module</name>
     <description>MCP Server and Client for FFMPEG operations</description>
 
@@ -53,6 +53,29 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>2.0.16</version>
+        </dependency>
+
+
+        <!-- Wiring -->
+        <dependency>
+            <groupId>org.glassfish.hk2</groupId>
+            <artifactId>hk2-api</artifactId>
+            <version>3.0.6</version> <!-- Or your preferred HK2 version -->
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.hk2</groupId>
+            <artifactId>hk2-locator</artifactId>
+            <version>3.0.6</version> <!-- Or your preferred HK2 version -->
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.hk2</groupId>
+            <artifactId>hk2-utils</artifactId>
+            <version>3.0.6</version> <!-- Or your preferred HK2 version -->
+        </dependency>
+        <dependency>
+            <groupId>jakarta.inject</groupId>
+            <artifactId>jakarta.inject-api</artifactId>
+            <version>2.0.1</version> <!-- Or a version compatible with your HK2 version -->
         </dependency>
 <!--
         <dependency>

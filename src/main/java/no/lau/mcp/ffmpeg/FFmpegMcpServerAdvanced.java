@@ -7,7 +7,7 @@ import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
-import no.lau.mcp.file.FileManagerImpl;
+import no.lau.mcp.config.AppBinder;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -16,6 +16,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.glassfish.hk2.api.ServiceLocator;
+import org.glassfish.hk2.api.ServiceLocatorFactory;
 
 /**
  * Advanced MCP Server implementation that wraps FFmpeg functionality with multiple tools.
@@ -27,18 +29,6 @@ public class FFmpegMcpServerAdvanced {
 	FFmpegWrapper ffmpeg;
 	//Logger log = LoggerFactory.getLogger(FFmpegMcpServerAdvanced.class);
 	// Track video references for better user experience
-
-
-	/**
-	 * Creates a new FFmpeg MCP server with the default stdio transport.
-	 */
-	public FFmpegMcpServerAdvanced() {
-		//Wiring the app with all relevant configuration
-		this(new StdioServerTransportProvider(new ObjectMapper()),
-				new FFmpegWrapper(
-						new FileManagerImpl("/tmp/vids/sources", "/tmp/vids/outputs")
-						, new DefaultFFmpegExecutor("/usr/local/bin/ffmpeg")));
-	}
 
 	/**
 	 * Creates a new FFmpeg MCP server with a custom transport provider and injectable dependencies for testing.
@@ -340,8 +330,15 @@ public class FFmpegMcpServerAdvanced {
 	public static void main(String[] args) throws IOException {
 		//System.err.println("Starting FFmpeg MCP Server (Advanced)...");
 
-		// Create the server
-		FFmpegMcpServerAdvanced server = new FFmpegMcpServerAdvanced();
+        ServiceLocatorFactory locatorFactory = ServiceLocatorFactory.getInstance();
+        ServiceLocator locator = locatorFactory.create("FFmpegMcpServerLocator");
+        org.glassfish.hk2.utilities.ServiceLocatorUtilities.bind(locator, new AppBinder());
+
+        FFmpegWrapper ffmpegWrapper = locator.getService(FFmpegWrapper.class);
+        ObjectMapper objectMapper = locator.getService(ObjectMapper.class);
+        StdioServerTransportProvider transportProvider = new StdioServerTransportProvider(objectMapper);
+
+		FFmpegMcpServerAdvanced server = new FFmpegMcpServerAdvanced(transportProvider, ffmpegWrapper);
 		server.start();
 
 		// Add a shutdown hook to close the server gracefully

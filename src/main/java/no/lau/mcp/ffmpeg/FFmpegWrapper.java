@@ -5,6 +5,7 @@ import no.lau.mcp.file.FileManager;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Path;
+import jakarta.inject.Inject;
 
 public class FFmpegWrapper {
 
@@ -14,7 +15,7 @@ public class FFmpegWrapper {
     private final FileManager fileManager;
     private final FFmpegExecutor executor;
 
-
+    @Inject
 	public FFmpegWrapper(FileManager fileManager, FFmpegExecutor executor) {
         this.fileManager = fileManager;
         this.executor = executor;
