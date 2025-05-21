@@ -2,7 +2,7 @@ package no.lau.mcp.listvideos;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.modelcontextprotocol.server.StdioServerTransportProvider;
+import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import org.junit.jupiter.api.Test;
 
@@ -26,10 +26,10 @@ class ListVideosMcpServerTest {
         CallToolResult result = server.handleListVideos(null, args);
 
         // Assert that there is no error
-        assertFalse(result.getIsError(), "Result should not be an error");
+        assertFalse(result.isError(), "Result should not be an error");
 
         // Get the text content (JSON string)
-        String jsonResult = result.getContent().get(0).getText();
+        String jsonResult = result.content().getFirst().type();
         assertNotNull(jsonResult, "JSON result should not be null");
 
         // Parse the JSON string into List<Map<String, String>>
@@ -40,7 +40,7 @@ class ListVideosMcpServerTest {
         assertEquals(2, videos.size(), "Videos list should contain 2 items");
 
         // Assert details of the first video
-        Map<String, String> video1 = videos.get(0);
+        Map<String, String> video1 = videos.getFirst();
         assertEquals("video1.mp4", video1.get("name"), "First video name mismatch");
         assertEquals("./sample_videos/video1.mp4", video1.get("path"), "First video path mismatch");
 
@@ -59,10 +59,10 @@ class ListVideosMcpServerTest {
         CallToolResult result = server.handleListVideos(null, args);
 
         // Assert that there is no error (as per current implementation, it returns an empty list)
-        assertFalse(result.getIsError(), "Result should not be an error for specific path");
+        assertFalse(result.isError(), "Result should not be an error for specific path");
 
         // Get the text content (JSON string)
-        String jsonResult = result.getContent().get(0).getText();
+        String jsonResult = result.content().getFirst().type();
         assertNotNull(jsonResult, "JSON result should not be null for specific path");
 
         // Parse the JSON string into List<Map<String, String>>

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.McpSyncServerExchange;
-import io.modelcontextprotocol.server.StdioServerTransportProvider;
+import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
 
@@ -24,13 +24,10 @@ public class ListVideosMcpServer {
 
     public ListVideosMcpServer(StdioServerTransportProvider transportProvider) {
         this.server = McpServer.sync(transportProvider)
-                .info("list-videos-mcp-server", "1.0.0")
+                .serverInfo("list-videos-mcp-server", "1.0.0")
                 .requestTimeout(Duration.ofMinutes(1))
                 .instructions("This server provides a tool to list video files.")
-                .tool(Tool.builder()
-                        .name("list_videos")
-                        .description("Lists video files available in a specified directory or a default media location.")
-                        .argumentsSchema("""
+                .tool(new Tool("list_videos", "Lists video files available in a specified directory or a default media location.", """
                                 {
                                     "type": "object",
                                     "properties": {
@@ -40,9 +37,8 @@ public class ListVideosMcpServer {
                                         }
                                     },
                                     "additionalProperties": false
-                                }""")
-                        .handler(this::handleListVideos)
-                        .build())
+                                }"""),
+                        this::handleListVideos)
                 .build();
     }
 
