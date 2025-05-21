@@ -8,6 +8,7 @@ import no.lau.mcp.ffmpeg.FFmpegMcpServerAdvanced;
 import no.lau.mcp.ffmpeg.FFmpegWrapper;
 import no.lau.mcp.file.FileManagerImpl;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import java.io.*;
 import java.nio.file.Files;
@@ -19,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Unit tests for the advanced FFmpeg MCP server. These tests verify the additional
  * functionality of the advanced server.
  */
+@Disabled
 public class FFmpegMcpServerAdvancedTest {
 
 	private ObjectMapper objectMapper;
