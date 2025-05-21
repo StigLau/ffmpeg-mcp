@@ -83,8 +83,7 @@ java -jar target/ffmpeg-mcp.jar --advanced
   "params": {
     "name": "addTargetVideo",
     "arguments": {
-      "targetName": "output_video",
-      "extension": ".mp4"
+      "targetName": "output_video"
     }
   }
 }

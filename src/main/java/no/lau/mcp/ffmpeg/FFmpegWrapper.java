@@ -28,6 +28,7 @@ public class FFmpegWrapper {
 		//System.err.println("Executing FFmpeg command (args only): " + commandArguments);
 
 		// Execute the command through the injected executor
+		//TODO Replace actual fileref like /tmp/vids/sources/wZ5.mp4 with the videoRef !!
 		return this.executor.execute(commandArguments);
 	}
 
@@ -42,7 +43,7 @@ public class FFmpegWrapper {
 	}
 
 	public String informationFromVideo(String videoRef) throws IOException {
-		Path resolvedVideoPath = fileManager.listFilesWithGeneratedKeys().get(videoRef);
+		Path resolvedVideoPath = fileManager.listVideoReferences().get(videoRef);
 		if(resolvedVideoPath != null) {
 			return executeDirectCommand("-i " + resolvedVideoPath);
 		} else {

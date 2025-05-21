@@ -34,7 +34,7 @@ public class FileManagerTest {
             file1.toFile().deleteOnExit();
             file2.toFile().deleteOnExit();
 
-            Map<String, Path> filesMap = fm.listFilesWithGeneratedKeys();
+            Map<String, Path> filesMap = fm.listVideoReferences();
             System.err.println("\nFiles in source folder (" + fm.sourceFolder + ") with generated IDs:");
             filesMap.forEach((id, path) -> System.err.println("ID: " + id + ", Path: " + path));
 

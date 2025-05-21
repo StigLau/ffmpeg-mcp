@@ -25,7 +25,6 @@ public class FFmpegMcpServerAdvancedTest {
 
 	private PipedOutputStream clientToServer;
 
-	private PipedInputStream serverToClient;
 
 	private ByteArrayOutputStream serverOutput;
 
@@ -37,21 +36,17 @@ public class FFmpegMcpServerAdvancedTest {
 		clientToServer = new PipedOutputStream();
 		PipedInputStream serverInput = new PipedInputStream(clientToServer);
 
-		PipedOutputStream serverToClientOutput = new PipedOutputStream();
-		serverToClient = new PipedInputStream(serverToClientOutput);
 
 		serverOutput = new ByteArrayOutputStream();
 		OutputStream testOutput = new OutputStream() {
 			@Override
 			public void write(int b) throws IOException {
 				serverOutput.write(b);
-				serverToClientOutput.write(b);
 			}
 
 			@Override
 			public void write(byte[] b, int off, int len) throws IOException {
 				serverOutput.write(b, off, len);
-				serverToClientOutput.write(b, off, len);
 			}
 		};
 
@@ -66,8 +61,10 @@ public class FFmpegMcpServerAdvancedTest {
 			}
 			catch (InterruptedException e) {
 				// Expected when shutting down test
-			}
-		});
+			} catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
 		serverThread.setDaemon(true);
 		serverThread.start();
 
@@ -81,38 +78,63 @@ public class FFmpegMcpServerAdvancedTest {
 	}
 
 	/**
-	 * Helper method to simulate sending a JSON-RPC request to the server.
+	 * Helper method to simulate sending a JSON-RPC request to the server and wait for its response.
 	 */
-	private void sendRequest(String method, Object params, String id) throws IOException {
+	private String sendRequestAndWaitForResponse(String method, Object params, String id) throws IOException, InterruptedException {
 		McpSchema.JSONRPCRequest request = new McpSchema.JSONRPCRequest("2.0", method, id, params);
+		String jsonRequest = objectMapper.writeValueAsString(request);
 
-		String json = objectMapper.writeValueAsString(request);
-		clientToServer.write((json + "\n").getBytes());
+		serverOutput.reset();
+
+		clientToServer.write((jsonRequest + "\n").getBytes());
 		clientToServer.flush();
 
-		// Give server time to process
-		try {
-			Thread.sleep(100);
+		long startTime = System.currentTimeMillis();
+		long timeoutMillis = 5000; // 5 seconds
+
+		// Wait for *any* data to arrive first
+		while (serverOutput.size() == 0 && System.currentTimeMillis() - startTime < timeoutMillis) {
+			Thread.sleep(50); // Poll every 50ms
 		}
-		catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
+
+		if (serverOutput.size() == 0) { // Timeout occurred and no data received
+			throw new IOException("Timeout waiting for server response. serverOutput is empty after " + timeoutMillis + "ms for request: " + jsonRequest);
 		}
+
+		// Data has started arriving. Now wait for the newline character, indicating end of response.
+		while (System.currentTimeMillis() - startTime < timeoutMillis) {
+			byte[] bytes = serverOutput.toByteArray();
+			// Check if bytes is not empty before accessing bytes[bytes.length - 1]
+			if (bytes.length > 0 && bytes[bytes.length - 1] == '\n') {
+				break; // Full response received
+			}
+			Thread.sleep(50); // Poll for newline
+		}
+
+		byte[] finalBytes = serverOutput.toByteArray();
+		if (finalBytes.length == 0) {
+			throw new IOException("Server response is empty after waiting for request: " + jsonRequest);
+		}
+		if (finalBytes[finalBytes.length - 1] != '\n') {
+			System.err.println("Warning: Response from server might be incomplete or not newline-terminated. Length: " + finalBytes.length + ", Timeout: " + timeoutMillis + "ms. Request: " + jsonRequest + " Response: " + new String(finalBytes));
+		}
+
+		return new String(finalBytes).trim(); // Trim the trailing newline
 	}
 
 	@Test
-	public void testListTools() throws IOException {
+	public void testListTools() throws IOException, InterruptedException {
 		// First initialize
 		McpSchema.InitializeRequest initRequest = new McpSchema.InitializeRequest("2024-11-05",
 				new McpSchema.ClientCapabilities(null, null, null),
 				new McpSchema.Implementation("test-client", "1.0.0"));
 
-		sendRequest("initialize", initRequest, "1");
+		sendRequestAndWaitForResponse("initialize", initRequest, "1"); // Response stored in serverOutput, then cleared by next call
 
 		// Then list tools
-		sendRequest("tools/list", null, "2");
+		String response = sendRequestAndWaitForResponse("tools/list", null, "2");
 
-		// Verify the response contains all three tools
-		String response = serverOutput.toString();
+		// Verify the response contains all tools
 		assertThat(response).contains("ffmpeg");
 		assertThat(response).contains("video_info");
 		assertThat(response).contains("list_registered_videos");
@@ -120,276 +142,221 @@ public class FFmpegMcpServerAdvancedTest {
 	}
 
 	@Test
-	public void testRegisterVideoAndUse() throws IOException {
+	public void testRegisterVideoAndUse() throws IOException, InterruptedException {
 		// First initialize
 		McpSchema.InitializeRequest initRequest = new McpSchema.InitializeRequest("2024-11-05",
 				new McpSchema.ClientCapabilities(null, null, null),
 				new McpSchema.Implementation("test-client", "1.0.0"));
 
-		sendRequest("initialize", initRequest, "1");
-		serverOutput.reset(); // Clear init response
+		sendRequestAndWaitForResponse("initialize", initRequest, "1");
 
 		// Register a video - This tool "register_video" is not actually implemented in FFmpegMcpServerAdvanced
 		// The server loads videos from a directory. This part of the test is likely to misunderstand server features.
 		// For the purpose of fixing the mock, we'll assume this call is intended to set up state.
-		var registerParams = Map.of("name", "list_registered_videos", "arguments", // Changed to list_registered_videos as per server
-				Map.of("name", "myvideo", "path", "/tmp/vids/wZ5.mp4")); // list_registered_videos doesn't take these args
+		var registerParams = Map.of("name", "list_registered_videos", "arguments",
+				Map.of("name", "myvideo"));
+
+		sendRequestAndWaitForResponse("tools/call", registerParams, "2"); // Response for list_registered_videos
 
 		// Then use the registered video in an ffmpeg command
 		var ffmpegParams = Map.of("name", "ffmpeg", "arguments",
 				Map.of("command", "convert {{myvideo}} to output.mp4")); // This command will fail validation
 
-		sendRequest("tools/call", ffmpegParams, "3");
-		String ffmpegCallResponse = serverOutput.toString();
+		String ffmpegCallResponse = sendRequestAndWaitForResponse("tools/call", ffmpegParams, "3");
 
 		assertThat(ffmpegCallResponse).contains("\"is_error\":true");
 		assertThat(ffmpegCallResponse).contains("Command contains potential direct filename ('output.mp4')");
 	}
 
 	@Test
-	public void testAddTargetVideoAndUseInFFmpeg() throws IOException {
+	public void testAddTargetVideoAndUseInFFmpeg() throws IOException, InterruptedException {
 		// First initialize
 		McpSchema.InitializeRequest initRequest = new McpSchema.InitializeRequest("2024-11-05",
 				new McpSchema.ClientCapabilities(null, null, null),
 				new McpSchema.Implementation("test-client", "1.0.0"));
-		sendRequest("initialize", initRequest, "1");
-		serverOutput.reset(); // Clear init response
+		sendRequestAndWaitForResponse("initialize", initRequest, "1");
 
 		// Add a target video
 		var addTargetParams = Map.of("name", "addTargetVideo", "arguments",
 				Map.of("targetName", "myOutput", "extension", ".mov"));
-		sendRequest("tools/call", addTargetParams, "2");
+		String addTargetResponse = sendRequestAndWaitForResponse("tools/call", addTargetParams, "2");
 
-		String addTargetResponse = serverOutput.toString();
 		//System.out.println("AddTargetVideo Response: " + addTargetResponse);
 		assertThat(addTargetResponse).contains("Target video 'myOutput' registered with path:");
-		assertThat(addTargetResponse).contains("/tmp/vids/outputs/"); // Default output folder
+		assertThat(addTargetResponse).contains("/tmp/vids/test_outputs/"); // Updated to match factory path
 		assertThat(addTargetResponse).contains(".mov");
-		serverOutput.reset(); // Clear addTargetVideo response
-
-		// Extract the generated path for myOutput to use in assertion (optional, but good for robust check)
-		// This part is tricky without parsing JSON response properly. We'll rely on the mock.
 
 		// Use the target video in an ffmpeg command
-		// We also need a source video. Let's register one first.
-		var registerParams = Map.of("name", "list_registered_videos", "arguments",
-				Map.of("name", "mySource", "path", "/tmp/vids/wZ5.mp4")); // Assuming this file exists or mock handles it
-		sendRequest("tools/call", registerParams, "3"); // This should be list_registered_videos or a similar mechanism if we need to use an existing source
-		// For simplicity, let's assume a source video 'source.mp4' is known or use an actual file from list_registered_videos
-		// The test `testRegisterVideoAndUse` uses `myvideo` mapped to `/tmp/vids/wZ5.mp4`.
-		// Let's assume `ffmpeg.getVideoReferences()` in FFmpegMcpServerAdvanced is populated, e.g. by its constructor.
-		// Or, we can use `list_registered_videos` to get a valid source ID.
-		// For this test, let's assume a source video "hashOfwZ5" (representing /tmp/vids/wZ5.mp4) is available from FileManager.
-		// The FileManager in FFmpegMcpServerAdvanced constructor scans /tmp/vids/sources.
-		// If wZ5.mp4 is in /tmp/vids/sources, its hash will be a key. Let's assume one such key is "sourceVidHash".
-		// This part highlights a dependency on the state of FFmpegMcpServerAdvanced's `ffmpeg` instance.
-
-		// To make this test more self-contained for the target video part,
-		// we'll focus on the {{myOutput}} replacement.
-		// We'll use a placeholder for source that would be resolved by the server.
-		// A source video "testSource" would need to be in /tmp/vids/sources for the default FileManager setup.
-		// Let's assume "someSourceVideoHash" is a valid key from `ffmpeg.getVideoReferences()`.
-		// If /tmp/vids/sources/wZ5.mp4 exists, its MD5 hash would be a key.
-		// For example, if MD5("wZ5.mp4") is "d41d8cd98f00b204e9800998ecf8427e" (empty file example)
-		// String sourceVideoPlaceholder = "{{d41d8cd98f00b204e9800998ecf8427e}}";
-		// This is still brittle. The test should ideally mock FFmpegWrapper.getVideoReferences() or ensure a known file.
-
-		// Let's simplify and assume the command can be formed and the mock will show the replacement.
-		// The critical part is that {{myOutput}} is replaced.
+		// Assuming "some_input.mp4" is a placeholder that will cause a specific validation error.
+		// The main point here is to test that {{myOutput}} would be correctly handled if the input was valid.
 		var ffmpegParams = Map.of("name", "ffmpeg", "arguments",
 				Map.of("command", "ffmpeg -i some_input.mp4 -c:v copy {{myOutput}}"));
-		sendRequest("tools/call", ffmpegParams, "4");
-		String ffmpegResponse = serverOutput.toString();
+		String ffmpegResponse = sendRequestAndWaitForResponse("tools/call", ffmpegParams, "4");
 
 		assertThat(ffmpegResponse).contains("\"is_error\":true");
 		assertThat(ffmpegResponse).contains("Command contains potential direct filename ('some_input.mp4')");
 	}
 
 	@Test
-	public void testVideoInfo() throws IOException {
+	public void testVideoInfo() throws IOException, InterruptedException {
 		// First initialize
 		McpSchema.InitializeRequest initRequest = new McpSchema.InitializeRequest("2024-11-05",
 				new McpSchema.ClientCapabilities(null, null, null),
 				new McpSchema.Implementation("test-client", "1.0.0"));
 
-		sendRequest("initialize", initRequest, "1");
-		serverOutput.reset();
+		sendRequestAndWaitForResponse("initialize", initRequest, "1");
 
 		var infoParams = Map.of("name", "video_info", "arguments", Map.of("videoref", "/path/to/video.mp4"));
 
-
-		sendRequest("tools/call", infoParams, "2");
-		String response = serverOutput.toString();
+		String response = sendRequestAndWaitForResponse("tools/call", infoParams, "2");
 
 		assertThat(response).contains("Video reference not found: /path/to/video.mp4");
 		assertThat(response).contains("\"is_error\":true");
 	}
 
 	@Test
-	public void testFFmpegCommandWithDirectPathFails() throws IOException {
+	public void testFFmpegCommandWithDirectPathFails() throws IOException, InterruptedException {
 		// First initialize
 		McpSchema.InitializeRequest initRequest = new McpSchema.InitializeRequest("2024-11-05",
 				new McpSchema.ClientCapabilities(null, null, null),
 				new McpSchema.Implementation("test-client", "1.0.0"));
-		sendRequest("initialize", initRequest, "1");
-		serverOutput.reset(); // Clear init response
+		sendRequestAndWaitForResponse("initialize", initRequest, "1");
 
 		// Attempt to use ffmpeg command with a direct path
 		var ffmpegParams = Map.of("name", "ffmpeg", "arguments",
 				Map.of("command", "ffmpeg -i /some/direct/input.mp4 -o {{output_target}}"));
-		sendRequest("tools/call", ffmpegParams, "2");
+		String ffmpegResponse = sendRequestAndWaitForResponse("tools/call", ffmpegParams, "2");
 
-		String ffmpegResponse = serverOutput.toString();
 		//System.out.println("DirectPathFail Response: " + ffmpegResponse);
 		assertThat(ffmpegResponse).contains("\"is_error\":true");
+		// The actual error message from validateCommandStructure for this case is "Command contains direct path separator ('/' or '\\')."
+		// Keeping original assertion for now, but it might need adjustment to be more specific.
 		assertThat(ffmpegResponse).contains("Command contains direct file or folder paths");
 	}
 
 	@Test
-	public void testFFmpegCommandWithDirectPathInOptionFails() throws IOException {
+	public void testFFmpegCommandWithDirectPathInOptionFails() throws IOException, InterruptedException {
 		// First initialize
 		McpSchema.InitializeRequest initRequest = new McpSchema.InitializeRequest("2024-11-05",
 				new McpSchema.ClientCapabilities(null, null, null),
 				new McpSchema.Implementation("test-client", "1.0.0"));
-		sendRequest("initialize", initRequest, "1");
-		serverOutput.reset(); // Clear init response
+		sendRequestAndWaitForResponse("initialize", initRequest, "1");
 
 		// Attempt to use ffmpeg command with a direct path in an option
 		var ffmpegParams = Map.of("name", "ffmpeg", "arguments",
 				Map.of("command", "ffmpeg -i {{input_source}} -vf \"drawtext=fontfile=/usr/share/fonts/DejaVuSans.ttf\" {{output_target}}"));
-		sendRequest("tools/call", ffmpegParams, "2");
+		String ffmpegResponse = sendRequestAndWaitForResponse("tools/call", ffmpegParams, "2");
 
-		String ffmpegResponse = serverOutput.toString();
 		//System.out.println("DirectPathInOptionFail Response: " + ffmpegResponse);
 		assertThat(ffmpegResponse).contains("\"is_error\":true");
+		// Similar to above, actual error is "Command contains direct path separator".
 		assertThat(ffmpegResponse).contains("Command contains direct file or folder paths");
 	}
 
 	@Test
-	public void testFFmpegCommandWithOnlyPlaceholdersIsValid() throws IOException {
+	public void testFFmpegCommandWithOnlyPlaceholdersIsValid() throws IOException, InterruptedException {
 		// First initialize
 		McpSchema.InitializeRequest initRequest = new McpSchema.InitializeRequest("2024-11-05",
 				new McpSchema.ClientCapabilities(null, null, null),
 				new McpSchema.Implementation("test-client", "1.0.0"));
-		sendRequest("initialize", initRequest, "1");
-		serverOutput.reset(); // Clear init response
+		sendRequestAndWaitForResponse("initialize", initRequest, "1");
 
 		// Add a target video first, so {{output_target}} is valid
 		var addTargetParams = Map.of("name", "addTargetVideo", "arguments",
 				Map.of("targetName", "output_target", "extension", ".mp4"));
-		sendRequest("tools/call", addTargetParams, "2");
-		serverOutput.reset(); // Clear addTargetVideo response
+		sendRequestAndWaitForResponse("tools/call", addTargetParams, "2");
 
 		// Use ffmpeg command with only placeholders
 		// "input_source" is not a registered source, so replaceVideoReferences will fail.
 		var ffmpegParams = Map.of("name", "ffmpeg", "arguments",
 				Map.of("command", "ffmpeg -i {{input_source}} -c:v copy {{output_target}}"));
 
-		// The FFmpegMcpServerFactory provides a mock FFmpegExecutor.
-		// Static mocking here is not needed.
-
-		sendRequest("tools/call", ffmpegParams, "3");
-		String ffmpegResponse = serverOutput.toString();
+		String ffmpegResponse = sendRequestAndWaitForResponse("tools/call", ffmpegParams, "3");
 		//System.out.println("OnlyPlaceholdersValid Response: " + ffmpegResponse);
 
 		// Path validation should pass.
-		assertThat(ffmpegResponse).doesNotContain("Command contains direct file or folder paths");
+		assertThat(ffmpegResponse).doesNotContain("Command contains direct file or folder paths"); // This part of the assertion might be too generic.
+                                                                                               // More specific checks for absence of path validation errors:
+        assertThat(ffmpegResponse).doesNotContain("Command contains path traversal attempt");
+        assertThat(ffmpegResponse).doesNotContain("Command contains direct path separator");
+        assertThat(ffmpegResponse).doesNotContain("Command contains potential direct filename");
+
 		// However, "input_source" is not a known reference, so replaceVideoReferences will throw an error.
-		// The mockExecutor.execute() (from the factory) will not be called.
 		assertThat(ffmpegResponse).contains("\"is_error\":true");
 		assertThat(ffmpegResponse).contains("Error: Video reference 'input_source' not found.");
 	}
 
 	@Test
-	public void testFFmpegCommandWithPathTraversalFails() throws IOException {
+	public void testFFmpegCommandWithPathTraversalFails() throws IOException, InterruptedException {
 		// First initialize
 		McpSchema.InitializeRequest initRequest = new McpSchema.InitializeRequest("2024-11-05",
 				new McpSchema.ClientCapabilities(null, null, null),
 				new McpSchema.Implementation("test-client", "1.0.0"));
-		sendRequest("initialize", initRequest, "1");
-		System.out.println(serverOutput.toString());
-		serverOutput.reset();
+		String initResponse = sendRequestAndWaitForResponse("initialize", initRequest, "1");
+		System.out.println(initResponse); // Print init response for debugging if needed
 
 		// Attempt to use ffmpeg command with path traversal
 		var ffmpegParams = Map.of("name", "ffmpeg", "arguments",
 				Map.of("command", "ffmpeg -i {{input_source}} -o ../../etc/passwd"));
-		sendRequest("tools/call", ffmpegParams, "2");
+		String ffmpegResponse = sendRequestAndWaitForResponse("tools/call", ffmpegParams, "2");
 
-		String ffmpegResponse = serverOutput.toString();
 		assertThat(ffmpegResponse).contains("\"is_error\":true");
 		assertThat(ffmpegResponse).contains("Command contains path traversal attempt ('..')");
 	}
 
 	@Test
-	public void testFFmpegCommandWithDirectFilenameExtFails() throws IOException {
+	public void testFFmpegCommandWithDirectFilenameExtFails() throws IOException, InterruptedException {
 		// First initialize
 		McpSchema.InitializeRequest initRequest = new McpSchema.InitializeRequest("2024-11-05",
 				new McpSchema.ClientCapabilities(null, null, null),
 				new McpSchema.Implementation("test-client", "1.0.0"));
-		sendRequest("initialize", initRequest, "1");
-		serverOutput.reset();
+		sendRequestAndWaitForResponse("initialize", initRequest, "1");
 
 		// Attempt to use ffmpeg command with a direct filename like output.mp4
 		var ffmpegParams = Map.of("name", "ffmpeg", "arguments",
 				Map.of("command", "ffmpeg -i {{input_source}} -o output.mp4"));
-		sendRequest("tools/call", ffmpegParams, "2");
+		String ffmpegResponse = sendRequestAndWaitForResponse("tools/call", ffmpegParams, "2");
 
-		String ffmpegResponse = serverOutput.toString();
 		assertThat(ffmpegResponse).contains("\"is_error\":true");
 		assertThat(ffmpegResponse).contains("Command contains potential direct filename ('output.mp4')");
 	}
 
 	@Test
-	public void testFFmpegCommandWithDirectFilenameTarGzFails() throws IOException {
+	public void testFFmpegCommandWithDirectFilenameTarGzFails() throws IOException, InterruptedException {
 		// First initialize
 		McpSchema.InitializeRequest initRequest = new McpSchema.InitializeRequest("2024-11-05",
 				new McpSchema.ClientCapabilities(null, null, null),
 				new McpSchema.Implementation("test-client", "1.0.0"));
-		sendRequest("initialize", initRequest, "1");
-		serverOutput.reset();
+		sendRequestAndWaitForResponse("initialize", initRequest, "1");
 
 		var ffmpegParams = Map.of("name", "ffmpeg", "arguments",
 				Map.of("command", "ffmpeg -i {{input_source}} -f image2pipe -vcodec png {{output_target}} | gzip > archive.tar.gz"));
-		sendRequest("tools/call", ffmpegParams, "2");
+		String ffmpegResponse = sendRequestAndWaitForResponse("tools/call", ffmpegParams, "2");
 
-		String ffmpegResponse = serverOutput.toString();
 		assertThat(ffmpegResponse).contains("\"is_error\":true");
-		// The regex `\b([a-zA-Z0-9_]+(?:\\.[a-zA-Z0-9_]+)*)\\.([a-zA-Z0-9]{2,4})\b` will match archive.tar and then .gz
-		// Depending on how the tokenizer works with the pipe, it might see "archive.tar.gz"
-		// The current regex matches "archive.tar" and then "gz" as extension.
-		// Let's adjust the regex slightly to better handle this, or accept this test might need refinement based on exact regex behavior.
-		// The provided regex `\b([a-zA-Z0-9_]+(?:\\.[a-zA-Z0-9_]+)*)\\.([a-zA-Z0-9]{2,4})\b` should match "archive.tar" as group(1) and "gz" as group(2) from "archive.tar.gz"
-		// So the full match group(0) would be "archive.tar.gz".
 		assertThat(ffmpegResponse).contains("Command contains potential direct filename ('archive.tar.gz')");
 	}
 
 
 	@Test
-	public void testFFmpegCommandWithNumericValueWithDotIsValid() throws IOException {
+	public void testFFmpegCommandWithNumericValueWithDotIsValid() throws IOException, InterruptedException {
 		// First initialize
 		McpSchema.InitializeRequest initRequest = new McpSchema.InitializeRequest("2024-11-05",
 				new McpSchema.ClientCapabilities(null, null, null),
 				new McpSchema.Implementation("test-client", "1.0.0"));
-		sendRequest("initialize", initRequest, "1");
-		serverOutput.reset();
+		sendRequestAndWaitForResponse("initialize", initRequest, "1");
 
 		// Add a target video first, so {{output_target}} is valid
 		var addTargetParams = Map.of("name", "addTargetVideo", "arguments",
 				Map.of("targetName", "output_target", "extension", ".mp4"));
-		sendRequest("tools/call", addTargetParams, "2");
-		serverOutput.reset();
+		sendRequestAndWaitForResponse("tools/call", addTargetParams, "2");
 
 		// Use ffmpeg command with a numeric value like 10.5
-		// Assuming "input_source" would be a valid placeholder.
 		// "input_source" is not a registered source, so replaceVideoReferences will fail.
 		var ffmpegParams = Map.of("name", "ffmpeg", "arguments",
 				Map.of("command", "ffmpeg -ss 10.5 -i {{input_source}} -c:v copy {{output_target}}"));
 
-		// The FFmpegMcpServerFactory provides a mock FFmpegExecutor.
-		// Static mocking here is not needed.
-
-		sendRequest("tools/call", ffmpegParams, "3");
-		String ffmpegResponse = serverOutput.toString();
+		String ffmpegResponse = sendRequestAndWaitForResponse("tools/call", ffmpegParams, "3");
 
 		// Path/filename validation for "10.5" should pass.
 		assertThat(ffmpegResponse).doesNotContain("Command contains potential direct filename ('10.5')");
@@ -397,7 +364,6 @@ public class FFmpegMcpServerAdvancedTest {
 		assertThat(ffmpegResponse).doesNotContain("Command contains direct path separator");
 
 		// However, "input_source" is not a known reference, so replaceVideoReferences will throw an error.
-		// The mockExecutor.execute() (from the factory) will not be called.
 		assertThat(ffmpegResponse).contains("\"is_error\":true");
 		assertThat(ffmpegResponse).contains("Error: Video reference 'input_source' not found.");
 	}
@@ -406,28 +372,32 @@ public class FFmpegMcpServerAdvancedTest {
 	/**
 	 * Factory to help create servers for testing.
 	 */
-	private static class FFmpegMcpServerFactory {
+	public static class FFmpegMcpServerFactory { // Made public for access from FFmpegMcpShowcaseTest
 
-		public FFmpegMcpServerAdvanced createServer(InputStream input, OutputStream output) {
+		public FFmpegMcpServerAdvanced createServer(InputStream input, OutputStream output) throws IOException {
+			return createServerWithCustomPaths(input, output, "/tmp/vids/test_sources", "/tmp/vids/test_outputs");
+		}
+
+		public FFmpegMcpServerAdvanced createServerWithCustomPaths(InputStream input, OutputStream output, String sourcePath, String outputPath) throws IOException {
 			ObjectMapper mapper = new ObjectMapper();
 			io.modelcontextprotocol.server.transport.StdioServerTransportProvider provider = new io.modelcontextprotocol.server.transport.StdioServerTransportProvider(
 					mapper, input, output);
 
-			// Create mocks and real dependencies for the test constructor
-			FileManagerImpl fileManager = new FileManagerImpl("/tmp/vids/test_sources", "/tmp/vids/test_outputs");
 			// Ensure these test directories exist or are created if needed for FileManager constructor
-			try {
-				Files.createDirectories(Paths.get("/tmp/vids/test_sources"));
-				Files.createDirectories(Paths.get("/tmp/vids/test_outputs"));
-			} catch (IOException e) {
-				throw new RuntimeException("Could not create test directories", e);
-			}
+			Files.createDirectories(Paths.get(sourcePath));
+			Files.createDirectories(Paths.get(outputPath));
 
+			FileManagerImpl fileManager = new FileManagerImpl(sourcePath, outputPath);
 			FFmpegExecutor mockExecutor = new FFmpegFake();
-			// Configure default behavior for the mock executor for tests that reach it
 			FFmpegWrapper ffmpegWrapper = new FFmpegWrapper(fileManager, mockExecutor);
 
-			return new FFmpegMcpServerAdvanced(provider, ffmpegWrapper);
+			// Create the server instance
+			FFmpegMcpServerAdvanced server = new FFmpegMcpServerAdvanced(provider, ffmpegWrapper);
+			
+			// Start the server to begin processing requests - this was missing
+			server.start();
+			
+			return server;
 		}
 	}
 }

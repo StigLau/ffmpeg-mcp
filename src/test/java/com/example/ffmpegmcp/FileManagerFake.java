@@ -5,26 +5,18 @@ import no.lau.mcp.file.FileManager;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 public class FileManagerFake implements FileManager {
-    private final Map<String, Path> fileRegistry = new HashMap<>();
 
     public <V, K> FileManagerFake(Map<String, Path> testFiles) {
-        fileRegistry.put("hello", Path.of("world"));
-        this.fileRegistry.putAll(testFiles);
+        targetVideoReferences.put("hello", Path.of("world"));
+        this.targetVideoReferences.putAll(testFiles);
     }
 
     @Override
-    public Map<String, Path> listFilesWithGeneratedKeys() {
-        return fileRegistry;
-    }
-
-    @Override
-    public Set<String> listVideoReferences() {
-        return listFilesWithGeneratedKeys().keySet();
+    public Map<String, Path> listVideoReferences() {
+        return targetVideoReferences;
     }
 
     @Override
@@ -36,6 +28,6 @@ public class FileManagerFake implements FileManager {
 
     @Override
     public String replaceVideoReferences(String command) {
-        return FileManager.replaceVideoReferences(command, fileRegistry);
+        return FileManager.replaceVideoReferences(command, targetVideoReferences);
     }
 }
