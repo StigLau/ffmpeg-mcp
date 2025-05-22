@@ -8,6 +8,8 @@ import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import no.lau.mcp.file.FileManagerImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -25,7 +27,7 @@ public class FFmpegMcpServerAdvanced {
 
 	private final McpSyncServer server;
 	FFmpegWrapper ffmpeg;
-	//Logger log = LoggerFactory.getLogger(FFmpegMcpServerAdvanced.class);
+	private static final Logger log = LoggerFactory.getLogger(FFmpegMcpServerAdvanced.class);
 	// Track video references for better user experience
 
 
@@ -161,12 +163,12 @@ public class FFmpegMcpServerAdvanced {
 		}
 		catch (IllegalArgumentException e) {
 			// Client error (invalid command)
-			System.err.println("Invalid FFmpeg command: " + e.getMessage());
+			log.error("Invalid FFmpeg command: {}", e.getMessage());
 			return CallToolResult.builder().addTextContent("Error: " + e.getMessage()).isError(true).build();
 		}
 		catch (IOException e) {
 			// FFmpeg execution error
-			System.err.println("FFmpeg execution error: " + e.getMessage());
+			log.error("FFmpeg execution error: {}", e.getMessage());
 			return CallToolResult.builder()
 				.addTextContent("FFmpeg execution failed: " + e.getMessage())
 				.isError(true)
@@ -174,7 +176,7 @@ public class FFmpegMcpServerAdvanced {
 		}
 		catch (Exception e) {
 			// Unexpected error
-			System.err.println("Unexpected error: " + e.getMessage());
+			log.error("Unexpected error: {}", e.getMessage());
 			e.printStackTrace();
 			return CallToolResult.builder().addTextContent("Unexpected error: " + e.getMessage()).isError(true).build();
 		}
@@ -196,7 +198,7 @@ public class FFmpegMcpServerAdvanced {
 			isError = false;
 		} catch (FileNotFoundException e) {
 			textContent = "Video reference not found: " + videoRef;
-			System.err.println("Could not find videoRef " + videoRef);
+			log.warn("Could not find videoRef: {}", videoRef);
 		} catch (IOException e) {
 			textContent = "Error getting video information from " + videoRef + ": " + e.getMessage();
 		}
@@ -214,7 +216,7 @@ public class FFmpegMcpServerAdvanced {
 	 */
 	private CallToolResult listRegisteredVideos(McpSyncServerExchange exchange, Map<String, Object> args) {
 		//log.info("calling list_registered_videos {}", args);
-		System.err.println("calling list_registered_videos " + args);
+		log.debug("calling list_registered_videos with args: {}", args);
 		try {
 			Set<String> vidIds = ffmpeg.fileManager().listVideoReferences().keySet();
 
@@ -303,13 +305,13 @@ public class FFmpegMcpServerAdvanced {
 					.isError(false)
 					.build();
 		} catch (IOException e) {
-			System.err.println("Error creating target video file: " + e.getMessage());
+			log.error("Error creating target video file: {}", e.getMessage());
 			return CallToolResult.builder()
 					.addTextContent("Error creating target video file: " + e.getMessage())
 					.isError(true)
 					.build();
 		} catch (IllegalArgumentException e) {
-			System.err.println("Error with target video parameters: " + e.getMessage());
+			log.error("Error with target video parameters: {}", e.getMessage());
 			return CallToolResult.builder()
 					.addTextContent("Error with target video parameters: " + e.getMessage())
 					.isError(true)
@@ -322,14 +324,14 @@ public class FFmpegMcpServerAdvanced {
 	 * Start the server.
 	 */
 	public void start() {
-		System.err.println("FFmpeg MCP Server (Advanced) started...");
+		log.info("FFmpeg MCP Server (Advanced) started...");
 	}
 
 	/**
 	 * Shutdown the server gracefully.
 	 */
 	public void shutdown() {
-		System.err.println("Shutting down FFmpeg MCP Server...");
+		log.info("Shutting down FFmpeg MCP Server...");
 		server.closeGracefully();
 	}
 
@@ -346,7 +348,7 @@ public class FFmpegMcpServerAdvanced {
 
 		// Add a shutdown hook to close the server gracefully
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-//			System.err.println("Shutting down FFmpeg MCP Server...");
+//			log.info("Shutting down FFmpeg MCP Server...");
 			server.shutdown();
 		}));
 
@@ -359,7 +361,7 @@ public class FFmpegMcpServerAdvanced {
 		}
 		catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
-			System.err.println("Server interrupted: " + e.getMessage());
+			log.error("Server interrupted: {}", e.getMessage());
 		}
 	}
 }
