@@ -5,14 +5,17 @@ import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.server.transport.StdioServerTransportProvider;
-import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import no.lau.mcp.file.FileManagerImpl;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Advanced MCP Server implementation that wraps FFmpeg functionality with multiple tools.
@@ -21,22 +24,31 @@ import java.util.Map;
 public class FFmpegMcpServerAdvanced {
 
 	private final McpSyncServer server;
-
+	FFmpegWrapper ffmpeg;
+	//Logger log = LoggerFactory.getLogger(FFmpegMcpServerAdvanced.class);
 	// Track video references for better user experience
-	private final Map<String, String> videoReferences = new HashMap<>();
+
 
 	/**
 	 * Creates a new FFmpeg MCP server with the default stdio transport.
 	 */
 	public FFmpegMcpServerAdvanced() {
-		this(new StdioServerTransportProvider(new ObjectMapper()));
+		//Wiring the app with all relevant configuration
+		this(new StdioServerTransportProvider(new ObjectMapper()),
+				new FFmpegWrapper(
+						new FileManagerImpl("/tmp/vids/sources", "/tmp/vids/outputs")
+						, new DefaultFFmpegExecutor("/usr/local/bin/ffmpeg")));
 	}
 
 	/**
-	 * Creates a new FFmpeg MCP server with a custom transport provider.
+	 * Creates a new FFmpeg MCP server with a custom transport provider and injectable dependencies for testing.
 	 * @param transportProvider The transport provider to use for MCP communication
+	 * @param ffmpegWrapperInstance The FFmpegWrapper instance to use. If null, a default one will be created.
 	 */
-	public FFmpegMcpServerAdvanced(StdioServerTransportProvider transportProvider) {
+	public FFmpegMcpServerAdvanced(StdioServerTransportProvider transportProvider, FFmpegWrapper ffmpegWrapperInstance) {
+		this.ffmpeg = ffmpegWrapperInstance;
+
+
 		// Define the JSON Schemas for the tools
 
 		// Main FFmpeg command tool schema
@@ -87,6 +99,21 @@ public class FFmpegMcpServerAdvanced {
 				    "additionalProperties": false
 				}
 				""";
+		
+		// Add target video tool schema
+		String addTargetVideoSchemaJson = """
+				{
+				    "type": "object",
+				    "properties": {
+				        "targetName": {
+				            "type": "string",
+				            "description": "A friendly name to reference the target video by (e.g., 'output_render'). This name will be used in {{targetName}} placeholders."
+				        }
+				    },
+				    "required": ["targetName"],
+				    "additionalProperties": false
+				}
+				""";
 
 		// Create the server with multiple FFmpeg-related tools
 		this.server = McpServer.sync(transportProvider)
@@ -95,18 +122,22 @@ public class FFmpegMcpServerAdvanced {
 			.instructions("""
 					This server provides FFmpeg video processing capabilities. Available tools:
 
-					1. ffmpeg - Execute FFmpeg commands on video files
-					2. video_info - Get information about a video file
-					3. register_video - Register a video file with a friendly name for easy reference
+					1. ffmpeg - Execute FFmpeg commands on video files. Use {{source_id}} for source files and {{target_id}} for output files.
+					2. video_info - Get information about a source video file.
+					3. list_registered_videos - List available source videos.
+					4. addTargetVideo - Register a target video name and generate a path for an output file.
 
-					Use {{videoref}} as a placeholder in FFmpeg commands to reference registered videos.
+					Use {{name}} as a placeholder in FFmpeg commands to reference registered source or target videos.
+					Target video placeholders (e.g., {{target_video_1}}) must be registered using 'addTargetVideo' before use in an 'ffmpeg' command.
 					""")
 			.tool(new Tool("ffmpeg", "Execute FFmpeg commands to process video and audio files", ffmpegSchemaJson),
 					this::handleFFmpegCommand)
 			.tool(new Tool("video_info", "Get information about a video file", videoInfoSchemaJson),
 					this::handleVideoInfo)
-			.tool(new Tool("register_video", "Register a video file for easy reference", registerVideoSchemaJson),
-					this::handleRegisterVideo)
+			.tool(new Tool("list_registered_videos", "List videos in storage which are registered", registerVideoSchemaJson),
+					this::listRegisteredVideos)
+			.tool(new Tool("addTargetVideo", "Registers a name and generates a filepath for a target (output) video.", addTargetVideoSchemaJson),
+					this::handleAddTargetVideo)
 			.build();
 	}
 
@@ -117,17 +148,13 @@ public class FFmpegMcpServerAdvanced {
 	 * @return The result of executing the FFmpeg command
 	 */
 	private CallToolResult handleFFmpegCommand(McpSyncServerExchange exchange, Map<String, Object> args) {
-		String command = (String) args.get("command");
+		String cmd = (String) args.get("command");
 
 		try {
+			// Validate command structure to prevent direct path injection
+			validateCommandStructure(cmd);
 			// Replace any video references in the command
-			command = replaceVideoReferences(command);
-
-			// Log the incoming command
-			System.err.println("Executing FFmpeg command: " + command);
-
-			// Execute the command through our wrapper
-			String result = FFmpegWrapper.performFFMPEG(command);
+			String result = ffmpeg.doffMPEGStuff(cmd);
 
 			// Build a successful result
 			return CallToolResult.builder().addTextContent(result).isError(false).build();
@@ -161,27 +188,22 @@ public class FFmpegMcpServerAdvanced {
 	 */
 	private CallToolResult handleVideoInfo(McpSyncServerExchange exchange, Map<String, Object> args) {
 		String videoRef = (String) args.get("videoref");
-
+		String textContent;
+		boolean isError = true;
 		try {
-			// Replace video reference if needed
-			String resolvedVideoPath = resolveVideoReference(videoRef);
-
-			// In a real implementation, we would use FFmpeg to get video information
-			// For this mock implementation, we'll simulate it
-			String ffmpegInfoCommand = "ffmpeg -i " + resolvedVideoPath;
-			String result = FFmpegWrapper.performFFMPEG(ffmpegInfoCommand);
-
-			return CallToolResult.builder()
-				.addTextContent("Video Information for " + videoRef + ":\n" + result)
-				.isError(false)
-				.build();
+			String rezz = ffmpeg.informationFromVideo(videoRef);
+			textContent = "Video Information for " + videoRef + ":\n" + rezz;
+			isError = false;
+		} catch (FileNotFoundException e) {
+			textContent = "Video reference not found: " + videoRef;
+			System.err.println("Could not find videoRef " + videoRef);
+		} catch (IOException e) {
+			textContent = "Error getting video information from " + videoRef + ": " + e.getMessage();
 		}
-		catch (Exception e) {
-			return CallToolResult.builder()
-				.addTextContent("Error getting video information: " + e.getMessage())
-				.isError(true)
+		return CallToolResult.builder()
+				.addTextContent(textContent)
+				.isError(isError)
 				.build();
-		}
 	}
 
 	/**
@@ -190,18 +212,17 @@ public class FFmpegMcpServerAdvanced {
 	 * @param args The tool arguments containing the video name and path
 	 * @return Confirmation of video registration
 	 */
-	private CallToolResult handleRegisterVideo(McpSyncServerExchange exchange, Map<String, Object> args) {
-		String name = (String) args.get("name");
-		String path = (String) args.get("path");
-
+	private CallToolResult listRegisteredVideos(McpSyncServerExchange exchange, Map<String, Object> args) {
+		//log.info("calling list_registered_videos {}", args);
+		System.err.println("calling list_registered_videos " + args);
 		try {
-			// Register the video with the given name
-			videoReferences.put(name, path);
+			Set<String> vidIds = ffmpeg.fileManager().listVideoReferences().keySet();
 
-			return CallToolResult.builder()
-				.addTextContent("Successfully registered video '" + name + "' pointing to: " + path)
-				.isError(false)
-				.build();
+			CallToolResult.Builder builder =  CallToolResult.builder();
+			for (String vidId : vidIds) {
+				builder.addTextContent("Video ID: " + vidId);
+			}
+			return builder.isError(false).build();
 		}
 		catch (Exception e) {
 			return CallToolResult.builder()
@@ -212,51 +233,96 @@ public class FFmpegMcpServerAdvanced {
 	}
 
 	/**
-	 * Replace video references in the command with their actual paths.
-	 * @param command The command with potential {{videoref}} placeholders
-	 * @return The command with resolved video references
+	 * Validates the FFmpeg command string to ensure no direct file/folder paths are used.
+	 * All file references must use the {{id}} placeholder syntax.
+	 *
+	 * @param command The FFmpeg command string to validate.
+	 * @throws IllegalArgumentException if the command contains direct path references.
 	 */
-	private String replaceVideoReferences(String command) {
-		// First check for direct {{name}} references
-		System.err.println("Replace in FFmpeg command: " + command);
+	private void validateCommandStructure(String command) throws IllegalArgumentException {
+		// Replace all {{placeholder}} instances with a benign, unique marker string
+		// that does not contain path characters or typical filename patterns.
+		String commandWithoutPlaceholders = command.replaceAll("\\{\\{.*?}}", "MCP_GENERATED_PLACEHOLDER");
 
-		for (Map.Entry<String, String> entry : videoReferences.entrySet()) {
-			System.err.println(entry.getKey() + " -> " + entry.getValue());
+		// 1. Check for path traversal attempts
+		if (commandWithoutPlaceholders.contains("..")) {
+			throw new IllegalArgumentException(
+					"Command contains path traversal attempt ('..'). " +
+							"All file references must use {{id}} placeholders."
+			);
 		}
 
-		for (Map.Entry<String, String> entry : videoReferences.entrySet()) {
-			String placeholder = "{{" + entry.getKey() + "}}";
-			if (command.contains(placeholder)) {
-				command = command.replace(placeholder, entry.getValue());
+		// 2. Check for explicit path separators
+		if (commandWithoutPlaceholders.contains("/") || commandWithoutPlaceholders.contains("\\")) {
+			throw new IllegalArgumentException(
+					"Command contains direct path separator ('/' or '\\'). " +
+							"All file references must use {{id}} placeholders."
+			);
+		}
+
+		// 3. Check for potential direct filenames with extensions (e.g., output.mp4)
+		// This regex looks for words with a dot and 2-4 char extension.
+		Pattern filenamePattern = Pattern.compile("\\b([a-zA-Z0-9_]+(?:\\.[a-zA-Z0-9_]+)*)\\.([a-zA-Z0-9]{2,4})\\b");
+		Matcher matcher = filenamePattern.matcher(commandWithoutPlaceholders);
+		while (matcher.find()) {
+			String potentialFilename = matcher.group(0); // The full match e.g., "file.mp4" or "archive.tar.gz" (if .gz is 2-4 chars)
+			// Allow purely numeric values like "1.0", "2.5" which might be FFmpeg parameters
+			try {
+				Double.parseDouble(potentialFilename);
+				// If successful, it's a number, so continue to next match
+			} catch (NumberFormatException e) {
+				// It's not a simple number, so treat as a disallowed direct filename
+				throw new IllegalArgumentException(
+						"Command contains potential direct filename ('" + potentialFilename + "'). " +
+								"All file references must use {{id}} placeholders."
+				);
 			}
 		}
-
-		// If we still have {{videoref}}, use the default replacement from FFmpegWrapper
-		return command;
 	}
 
 	/**
-	 * Resolve a video reference to its actual path.
-	 * @param videoRef The video reference name
-	 * @return The resolved path
-	 * @throws IllegalArgumentException if the reference cannot be resolved
+	 * Handle the addTargetVideo tool to register a name for a target (output) video file.
+	 * @param exchange The server exchange for communicating with the client
+	 * @param args The tool arguments containing the target name and optional extension
+	 * @return Confirmation of target video registration
 	 */
-	private String resolveVideoReference(String videoRef) {
-		if (videoReferences.containsKey(videoRef)) {
-			return videoReferences.get(videoRef);
-		}
+	private CallToolResult handleAddTargetVideo(McpSyncServerExchange exchange, Map<String, Object> args) {
+		String targetName = (String) args.get("targetName");
 
-		// If not found in our map, assume it's a direct path
-		// In a real implementation, we would validate the path exists
-		return videoRef;
+		if (targetName == null || targetName.trim().isBlank()) {
+			return CallToolResult.builder()
+					.addTextContent("Error: targetName cannot be empty.")
+					.isError(true)
+					.build();
+		}
+		
+		try {
+			ffmpeg.fileManager().createNewFileWithAutoGeneratedNameInSecondFolder(targetName);
+			return CallToolResult.builder()
+					.addTextContent("Target video '" + targetName + "' registered")
+					.isError(false)
+					.build();
+		} catch (IOException e) {
+			System.err.println("Error creating target video file: " + e.getMessage());
+			return CallToolResult.builder()
+					.addTextContent("Error creating target video file: " + e.getMessage())
+					.isError(true)
+					.build();
+		} catch (IllegalArgumentException e) {
+			System.err.println("Error with target video parameters: " + e.getMessage());
+			return CallToolResult.builder()
+					.addTextContent("Error with target video parameters: " + e.getMessage())
+					.isError(true)
+					.build();
+		}
 	}
+
 
 	/**
 	 * Start the server.
 	 */
 	public void start() {
 		System.err.println("FFmpeg MCP Server (Advanced) started...");
-		System.err.println("Available tools: ffmpeg, video_info, register_video");
 	}
 
 	/**
@@ -271,8 +337,8 @@ public class FFmpegMcpServerAdvanced {
 	 * Main entry point for starting the FFmpeg MCP server.
 	 * @param args Command line arguments (not used)
 	 */
-	public static void main(String[] args) {
-		System.err.println("Starting FFmpeg MCP Server (Advanced)...");
+	public static void main(String[] args) throws IOException {
+		//System.err.println("Starting FFmpeg MCP Server (Advanced)...");
 
 		// Create the server
 		FFmpegMcpServerAdvanced server = new FFmpegMcpServerAdvanced();
@@ -280,11 +346,11 @@ public class FFmpegMcpServerAdvanced {
 
 		// Add a shutdown hook to close the server gracefully
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-			System.err.println("Shutting down FFmpeg MCP Server...");
+//			System.err.println("Shutting down FFmpeg MCP Server...");
 			server.shutdown();
 		}));
 
-		System.err.println("FFmpeg MCP Server running. Press Ctrl+C to exit.");
+		//System.err.println("FFmpeg MCP Server running. Press Ctrl+C to exit.");
 
 		// Keep the server running until terminated
 		try {
@@ -296,5 +362,4 @@ public class FFmpegMcpServerAdvanced {
 			System.err.println("Server interrupted: " + e.getMessage());
 		}
 	}
-
 }

@@ -75,3 +75,15 @@ htmlcov/
 .tmp/
 temp/
 .cache/
+
+# Claude Code files
+.claude-code-cache/
+.claude-code-history/
+.aider.*
+.aider.chat.history.md
+.aider.input.history
+.aider.tags.cache.v4/
+
+# Test directories for this project
+/tmp/vids/test_sources/
+/tmp/vids/test_outputs/

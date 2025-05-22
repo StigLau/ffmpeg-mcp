@@ -1,76 +1,57 @@
 package no.lau.mcp.ffmpeg;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import no.lau.mcp.file.FileManager;
 
-import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.Optional;
+import java.nio.file.Path;
 
 public class FFmpegWrapper {
 
-	static Logger logger = LoggerFactory.getLogger(FFmpegWrapper.class);
-	static String ffprobe = findAppPathUsingProcessBuilder("ffprobe").get();
-	static String ffmpeg = findAppPathUsingProcessBuilder("ffmpeg").get();
+	//static Logger logger = LoggerFactory.getLogger(FFmpegWrapper.class);
+	//static String ffprobe = findAppPathUsingProcessBuilder("ffprobe").get();
 
-	public static String performFFMPEG(String command) throws IOException {
-		String newCommand;
-		if (command.startsWith("ffprobe")) {
-			newCommand = command.replaceFirst("ffprobe", ffprobe);
-		}
-		else if (command.startsWith("ffmpeg")) {
-			newCommand = command.replaceFirst("ffmpeg", ffmpeg);
-		}
-		else {
-			newCommand = ffmpeg + " " + command;
-		}
-		return performFFMPEGWrapped(newCommand);
+    private final FileManager fileManager;
+    private final FFmpegExecutor executor;
+
+
+	public FFmpegWrapper(FileManager fileManager, FFmpegExecutor executor) {
+        this.fileManager = fileManager;
+        this.executor = executor;
+    }
+
+
+	public String doffMPEGStuff(String cmd) throws IOException {
+		String commandArguments = fileManager.replaceVideoReferences(cmd);
+
+		// Log the incoming command
+		//System.err.println("Executing FFmpeg command (args only): " + commandArguments);
+
+		// Execute the command through the injected executor
+		//TODO Replace actual fileref like /tmp/vids/sources/wZ5.mp4 with the videoRef !!
+		return this.executor.execute(commandArguments);
 	}
 
-	public static String performFFMPEGWrapped(String command) throws IOException {
-		// Make sure destination folder has been created!
-		logger.info("Running command: '{}'", command);
-
-		Process p = Runtime.getRuntime().exec(command);
-
-		BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
-
-		String s;
-		String result = "";
-		while ((s = stdInput.readLine()) != null) {
-			result += s + "\n";
-			// Printing to console, to keep end user updated
-			System.out.print(s + "\r");
-			System.out.print(s);
-		}
-
-		BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-
-		result += "\n\n\n";
-		while ((s = stdError.readLine()) != null) {
-			result += s + "\n";
-		}
-
-		return result;
+	/**
+	 * Executes raw FFMPEG command.
+	 * @param commandArguments The command arguments to pass to FFmpeg.
+	 * @return The output from FFmpeg.
+	 * @throws IOException If an error occurs during execution.
+	 */
+	public String executeDirectCommand(String commandArguments) throws IOException {
+		return this.executor.execute(commandArguments);
 	}
 
-	public static Optional<String> findAppPathUsingProcessBuilder(String appName) {
-		try {
-			ProcessBuilder processBuilder = new ProcessBuilder("which", appName);
-			Process process = processBuilder.start();
-
-			BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-
-			String path = reader.readLine();
-			process.waitFor();
-
-			return Optional.of(path);
-		}
-		catch (Exception e) {
-			logger.debug("Could not find application path for {}", appName);
-			return Optional.empty();
+	public String informationFromVideo(String videoRef) throws IOException {
+		Path resolvedVideoPath = fileManager.listVideoReferences().get(videoRef);
+		if(resolvedVideoPath != null) {
+			return executeDirectCommand("-i " + resolvedVideoPath);
+		} else {
+			throw new FileNotFoundException(videoRef);
 		}
 	}
 
+	public FileManager fileManager() {
+		return fileManager;
+	}
 }

@@ -6,16 +6,15 @@
 
     <groupId>no.lau.mcp</groupId>
     <artifactId>ffmpeg</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.1</version>
     <name>FFMPEG MCP Module</name>
     <description>MCP Server and Client for FFMPEG operations</description>
 
     <properties>
-        <java.version>23</java.version>
+        <java.version>17</java.version>
         <mcp.version>0.10.0</mcp.version>
         <junit.version>5.9.2</junit.version>
-        <mockito.version>4.8.1</mockito.version>
-        <slf4j.version>2.0.5</slf4j.version>
+        <slf4j.version>2.0.16</slf4j.version>
         <reactor.version>3.4.23</reactor.version> <!-- Example version, align with your project -->
         <assertj.version>3.23.1</assertj.version>
         <jackson.version>2.15.2</jackson.version>
@@ -44,16 +43,23 @@
         </dependency>
 
         <!-- Logging -->
+
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.16</version>
+        </dependency>
+<!--
+        <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>1.5.11</version>
-        </dependency>
+        </dependency> -->
 
         <!-- Testing -->
         <dependency>
@@ -69,12 +75,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>${mockito.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <version>${assertj.version}</version>
@@ -82,15 +82,28 @@
         </dependency>
     </dependencies>
 
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub StigLau Apache Maven Packages</name>
+            <url>https://maven.pkg.github.com/StigLau/ffmpeg-mcp</url>
+        </repository>
+    </distributionManagement>
+
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.10.1</version>
+                <version>3.14.0</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
+                    <!--
+                    <source>24</source>
+                    <target>24</target>
+                    <compilerArgs>- -enable-preview</compilerArgs>
+                    -->
                 </configuration>
             </plugin>
             
