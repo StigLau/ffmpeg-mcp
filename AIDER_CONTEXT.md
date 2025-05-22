@@ -2,41 +2,77 @@
 
 ## Project Overview
 
-This project implements a Java-based Model Context Protocol (MCP) server and client for FFmpeg operations. It allows Large Language Models (LLMs) to interact with FFmpeg through a standardized protocol.
+FFmpeg MCP is a Java-based Model Context Protocol (MCP) server that enables Large Language Models (LLMs) like Claude to interact with FFmpeg for video/audio processing. The project is built with Java 17, Maven, and the MCP SDK v0.10.0.
 
-## Key Components
+## Key Architecture Components
 
-### Server Components
-- `FFmpegMcpServerAdvanced`: Main server implementation exposing FFmpeg functionality via MCP
-- `FFmpegWrapper`: Wraps FFmpeg execution and handles file references
-- `FileManager` & `FileManagerImpl`: Manage video file storage and access
+### Core Server Implementation (`src/main/java/no/lau/mcp/ffmpeg/`)
+- `FFmpegMcpServerAdvanced`: Main MCP server implementation with stdio transport
+- `FFmpegWrapper`: Abstraction layer for FFmpeg command execution  
+- `DefaultFFmpegExecutor`: Real FFmpeg command execution (using ProcessBuilder)
+- `FFmpegExecutor`: Interface for command execution
+- `FileHasher`: Utility for generating file hashes (currently MD5, should migrate to SHA-256)
 
-### Tools Provided by the Server
-- `ffmpeg`: Execute FFmpeg commands with placeholders for videos
-- `video_info`: Get information about source videos
-- `list_registered_videos`: List available source videos
-- `addTargetVideo`: Register target video output files
+### File Management (`src/main/java/no/lau/mcp/file/`)
+- `FileManager`: Interface for video file registration and management
+- `FileManagerImpl`: Implementation with in-memory storage and file operations
+- `FileManagerUtils`: Static utilities for file operations
 
-### Testing Components
-- `FFmpegFake`: Mock implementation of FFmpeg for testing
-- Various test classes demonstrating server functionality
+### MCP Tools Exposed
+- `ffmpeg`: Execute FFmpeg commands with video reference placeholders
+- `video_info`: Retrieve metadata about registered videos
+- `list_registered_videos`: List all available source videos
+- `addTargetVideo`: Register target video files for output
 
-## Known Issues
+### Test Infrastructure (`src/test/java/com/example/ffmpegmcp/`)
+- `FFmpegFake`: Mock FFmpeg implementation for testing
+- `FileManagerFake`: Mock file manager for testing
+- Integration and unit tests for server functionality
 
-**MCP Server Limitation:** The MCP server (v0.10.0) has a critical limitation where only the initialization call works correctly in tests. Subsequent requests (tools/list, tools/call, etc.) time out without receiving responses. This is likely due to issues with how the MCP library handles the Stdio transport.
+## Known Issues & Limitations
 
-## Common Commands
+### MCP Server Transport Issue
+- MCP server (v0.10.0) only works for initialization in test environment
+- Subsequent requests (tools/list, tools/call) time out with stdio transport
+- Use real MCP client tools for full functionality testing
+
+### Security & Architecture Issues
+- Uses Runtime.exec() instead of ProcessBuilder (command injection risk)
+- Static fields anti-pattern in FileManager interface  
+- Mixed logging (System.err.println + SLF4J)
+- MD5 hashing instead of SHA-256
+- Hardcoded file paths need configuration externalization
+
+## Build & Run Commands
 
 ```bash
-# Build project
+# Clean build
 mvn clean package
 
-# Run tests
+# Run all tests
 mvn test
-mvn test -Dtest=McpClientShowcaseTest
 
-# Start server
-java -jar target/ffmpeg-mcp.jar --advanced
+# Run specific test class
+mvn test -Dtest=FFmpegMcpServerAdvancedTest
+
+# Start MCP server (advanced mode)
+java -jar target/ffmpeg-0.3.0.jar --advanced
+
+# Start basic server
+java -jar target/ffmpeg-0.3.0.jar
+```
+
+## Development Commands
+
+```bash
+# Check for security vulnerabilities
+mvn dependency-check:check
+
+# Generate dependency tree
+mvn dependency:tree
+
+# Run with debug logging
+java -Dorg.slf4j.simpleLogger.defaultLogLevel=debug -jar target/ffmpeg-0.3.0.jar
 ```
 
 ## Project Structure

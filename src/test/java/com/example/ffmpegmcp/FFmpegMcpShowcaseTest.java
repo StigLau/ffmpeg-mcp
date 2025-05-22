@@ -128,7 +128,6 @@ public class FFmpegMcpShowcaseTest {
     }
 
     @Test
-    @Disabled //Not functional through MCP Server interface
     public void showcaseFFmpegMcpServerFeatures() throws IOException, InterruptedException {
         // 1. Initialize connection
         McpSchema.InitializeRequest initParams = new McpSchema.InitializeRequest("2024-11-05",

@@ -6,7 +6,7 @@
 
     <groupId>no.lau.mcp</groupId>
     <artifactId>ffmpeg</artifactId>
-    <version>0.2.1</version>
+    <version>0.3.0</version>
     <name>FFMPEG MCP Module</name>
     <description>MCP Server and Client for FFMPEG operations</description>
 
@@ -18,7 +18,6 @@
         <reactor.version>3.4.23</reactor.version> <!-- Example version, align with your project -->
         <assertj.version>3.23.1</assertj.version>
         <jackson.version>2.15.2</jackson.version>
-        <main.class>no.lau.mcp.Main</main.class>
     </properties>
 
     <dependencies>

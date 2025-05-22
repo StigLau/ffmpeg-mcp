@@ -51,32 +51,57 @@ mvn clean package
 Run tests:
 ```bash
 mvn test
-```
-
-Run specific test:
-```bash
-mvn test -Dtest=McpClientShowcaseTest
+mvn test -Dtest=FFmpegMcpServerAdvancedTest
 ```
 
 Start the server:
 ```bash
-java -jar target/ffmpeg-mcp.jar
+# Advanced server (recommended)
+java -jar target/ffmpeg-0.3.0.jar --advanced
+
+# Basic server
+java -jar target/ffmpeg-0.3.0.jar
 ```
 
-## Helpful Tips
+Development tools:
+```bash
+# Debug logging
+java -Dorg.slf4j.simpleLogger.defaultLogLevel=debug -jar target/ffmpeg-0.3.0.jar --advanced
 
-1. For MCP server interactions, check the FFmpegMcpServerAdvanced class
-2. Video processing logic is in FFmpegWrapper
-3. For file storage and management, look at FileManagerImpl
-4. All tests use FFmpegFake instead of real FFmpeg
+# Dependency analysis
+mvn dependency:tree
+```
 
-## Project Structure
-- `src/main/java/no/lau/mcp/ffmpeg/`: Core server implementation
-- `src/main/java/no/lau/mcp/file/`: File management functionality
-- `src/test/java/com/example/ffmpegmcp/`: Test classes for server and client
+## Key File Locations
 
-## MCP Protocol
+- **Main server**: `src/main/java/no/lau/mcp/ffmpeg/FFmpegMcpServerAdvanced.java`
+- **FFmpeg wrapper**: `src/main/java/no/lau/mcp/ffmpeg/FFmpegWrapper.java`
+- **File management**: `src/main/java/no/lau/mcp/file/FileManagerImpl.java`
+- **Main tests**: `src/test/java/com/example/ffmpegmcp/FFmpegMcpServerAdvancedTest.java`
+- **Mock implementations**: `src/test/java/no/lau/mcp/ffmpeg/FFmpegFake.java`
 
-- Protocol Version: 2024-11-05
-- Communication Method: JSON-RPC 2.0
-- Transport Protocol: stdio (standard input/output)
+## Development Notes
+
+### Current Architecture
+- Uses MCP SDK v0.10.0 with stdio transport
+- Mock FFmpeg implementation for testing (FFmpegFake)
+- In-memory file registry with FileManagerImpl
+- JSON-RPC 2.0 communication over stdio
+
+### Recent Security Fixes Applied
+- Replaced Runtime.exec() with ProcessBuilder in DefaultFFmpegExecutor
+- Fixed static field anti-patterns in FileManager interface
+- Improved error handling and input validation
+- Enhanced test coverage
+
+### Testing Strategy
+- Unit tests use FFmpegFake to avoid FFmpeg dependency
+- Integration tests demonstrate MCP protocol interaction
+- Known limitation: MCP stdio transport only works for initialization in tests
+
+## MCP Protocol Details
+
+- **Protocol Version**: 2024-11-05
+- **Communication**: JSON-RPC 2.0 over stdio
+- **Tools**: ffmpeg, video_info, list_registered_videos, addTargetVideo
+- **Client Support**: Designed for LLM clients like Claude Desktop

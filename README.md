@@ -171,3 +171,32 @@ java -jar target/ffmpeg-mcp.jar > stdout.log 2> stderr.log
 ## License
 
 This project is licensed under the same license as the parent Model Context Protocol Java SDK.
+
+
+
+##Fixes
+
+Based on my analysis, here are the key improvements for your FFmpeg MCP project:
+
+Critical Issues:
+- Replace unsafe Runtime.exec() with ProcessBuilder to prevent command injection
+- Fix static fields anti-pattern in FileManager interface
+- Standardize logging (currently mixing System.err.println and SLF4J)
+
+Architecture Improvements:
+- Extract hardcoded paths to configuration
+- Implement async processing for FFmpeg operations
+- Add proper error handling with custom exceptions
+- Create a dedicated video registry service
+
+Testing & Security:
+- Add tests for DefaultFFmpegExecutor and FileHasher
+- Replace MD5 hashing with SHA-256
+- Add input validation and sanitization
+- Implement integration tests with real FFmpeg
+
+Quick Wins:
+- Enable the commented-out SLF4J loggers
+- Add JavaDoc to public methods
+- Configure Maven properly (remove commented dependencies)
+- Implement try-with-resources for resource cleanup

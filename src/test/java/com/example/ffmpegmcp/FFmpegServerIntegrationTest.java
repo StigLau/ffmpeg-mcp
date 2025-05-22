@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Integration test that actually starts an FFmpeg MCP server and sends requests to it.
  */
-@Disabled // Timeout issues / 2. request issues not resolved
+@Disabled // Complex integration test - recommend using WorkingMcpClientTest pattern instead  
 public class FFmpegServerIntegrationTest {
 
 	private PipedOutputStream clientToServer;

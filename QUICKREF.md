@@ -1,21 +1,32 @@
 # FFmpeg MCP Quick Reference
 
-## Key Commands
+## Essential Commands
 
-### Build
+### Build & Test
 ```bash
+# Clean build
 mvn clean package
-```
 
-### Run Tests
-```bash
+# Run all tests
 mvn test
-mvn test -Dtest=McpClientShowcaseTest
+
+# Run specific test
+mvn test -Dtest=FFmpegMcpServerAdvancedTest
+
+# Build with debug info
+mvn clean package -X
 ```
 
 ### Run Server
 ```bash
-java -jar target/ffmpeg-mcp.jar --advanced
+# Advanced server (recommended)
+java -jar target/ffmpeg-0.3.0.jar --advanced
+
+# Basic server
+java -jar target/ffmpeg-0.3.0.jar
+
+# With debug logging
+java -Dorg.slf4j.simpleLogger.defaultLogLevel=debug -jar target/ffmpeg-0.3.0.jar --advanced
 ```
 
 ## JSON-RPC Commands
@@ -124,4 +135,24 @@ java -jar target/ffmpeg-mcp.jar --advanced
 
 ## Known Limitations
 
-In tests, only the initialization call works properly due to limitations in the MCP server (v0.10.0) stdio handling. For a full demonstration, use an actual MCP client tool.
+- **MCP Testing**: Only initialization works in test environment due to stdio transport issues
+- **Security**: DefaultFFmpegExecutor uses ProcessBuilder but validate inputs carefully
+- **File Paths**: Hardcoded paths in `/tmp/mcp-videos/` - needs configuration
+- **Hashing**: Currently uses MD5, consider SHA-256 for production
+
+## Key Classes to Know
+
+| Class | Location | Purpose |
+|-------|----------|---------|
+| `FFmpegMcpServerAdvanced` | `src/main/java/no/lau/mcp/ffmpeg/` | Main MCP server |
+| `FFmpegWrapper` | `src/main/java/no/lau/mcp/ffmpeg/` | FFmpeg command wrapper |
+| `FileManagerImpl` | `src/main/java/no/lau/mcp/file/` | File registration & storage |
+| `DefaultFFmpegExecutor` | `src/main/java/no/lau/mcp/ffmpeg/` | Real FFmpeg execution |
+| `FFmpegFake` | `src/test/java/no/lau/mcp/ffmpeg/` | Mock for testing |
+
+## Development Tips
+
+- Use `FFmpegFake` for unit tests to avoid FFmpeg dependency
+- Check `FFmpegMcpServerAdvancedTest` for server behavior examples
+- File operations go through `FileManagerImpl` with in-memory registry
+- All MCP tools are defined in `FFmpegMcpServerAdvanced.createTools()`
