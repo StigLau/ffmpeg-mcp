@@ -52,11 +52,8 @@ jobs:
         cache: maven
         server-id: github
     
-    - name: Download build artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: app-jar
-        path: target/
+    - name: Build with Maven
+      run: mvn -B package --file pom.xml
     
     - name: Configure Maven for GitHub Packages
       run: |
@@ -66,14 +63,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Publish to GitHub Packages
-      run: |
-        mvn deploy:deploy-file \
-          -DgroupId=no.lau.mcp \
-          -DartifactId=ffmpeg \
-          -Dversion=0.1.0-SNAPSHOT \
-          -Dpackaging=jar \
-          -Dfile=target/ffmpeg-0.1.0.jar \
-          -DrepositoryId=github \
-          -Durl=https://maven.pkg.github.com/StigLau/ffmpeg-mcp
+      run: mvn deploy
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
