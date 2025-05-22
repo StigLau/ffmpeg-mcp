@@ -1,13 +1,17 @@
 package com.example.ffmpegmcp;
 
 import no.lau.mcp.file.FileManager;
+import no.lau.mcp.file.FileManagerUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 
 public class FileManagerFake implements FileManager {
+    
+    private final Map<String, Path> targetVideoReferences = new HashMap<>();
 
     public <V, K> FileManagerFake(Map<String, Path> testFiles) {
         targetVideoReferences.put("hello", Path.of("world"));
@@ -16,7 +20,7 @@ public class FileManagerFake implements FileManager {
 
     @Override
     public Map<String, Path> listVideoReferences() {
-        return targetVideoReferences;
+        return new HashMap<>(targetVideoReferences);
     }
 
     @Override
@@ -28,6 +32,16 @@ public class FileManagerFake implements FileManager {
 
     @Override
     public String replaceVideoReferences(String command) {
-        return FileManager.replaceVideoReferences(command, targetVideoReferences);
+        return FileManagerUtils.replaceVideoReferences(command, targetVideoReferences);
+    }
+    
+    @Override
+    public Map<String, Path> getTargetVideoReferences() {
+        return new HashMap<>(targetVideoReferences);
+    }
+    
+    @Override
+    public void addTargetVideoReference(String id, Path path) {
+        targetVideoReferences.put(id, path);
     }
 }

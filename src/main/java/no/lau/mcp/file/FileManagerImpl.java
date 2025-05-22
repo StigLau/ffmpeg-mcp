@@ -21,8 +21,9 @@ public class FileManagerImpl implements FileManager {
     public final Path sourceFolder;
     public final Path destinationFolder;
     private static final String DEFAULT_GENERATED_FILE_EXTENSION = ".mp4";
+    private final Map<String, Path> targetVideoReferences = new HashMap<>();
 
-    static Logger log = LoggerFactory.getLogger(FileManagerImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(FileManagerImpl.class);
 
     /**
      * Constructs a FileManager instance.
@@ -188,7 +189,17 @@ public class FileManagerImpl implements FileManager {
     }
 
     public String replaceVideoReferences(String command)  {
-        return FileManager.replaceVideoReferences(command, targetVideoReferences);
+        return FileManagerUtils.replaceVideoReferences(command, targetVideoReferences);
+    }
+    
+    @Override
+    public Map<String, Path> getTargetVideoReferences() {
+        return new HashMap<>(targetVideoReferences);
+    }
+    
+    @Override
+    public void addTargetVideoReference(String id, Path path) {
+        targetVideoReferences.put(id, path);
     }
 }
 
