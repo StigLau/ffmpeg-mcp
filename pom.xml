@@ -6,7 +6,7 @@
 
     <groupId>no.lau.mcp</groupId>
     <artifactId>ffmpeg</artifactId>
-    <version>0.3.0</version>
+    <version>0.3.1</version>
     <name>FFMPEG MCP Module</name>
     <description>MCP Server and Client for FFMPEG operations</description>
 
