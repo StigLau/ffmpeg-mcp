@@ -92,8 +92,7 @@ public class FileManagerImpl implements FileManager {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        //log.info("Found " + fileMap.size() + " files in " + sourceFolder);
-        System.err.println("Found " + fileMap.size() + " files in " + sourceFolder);
+        log.info("Found " + fileMap.size() + " files in " + sourceFolder);
         return fileMap;
     }
 
