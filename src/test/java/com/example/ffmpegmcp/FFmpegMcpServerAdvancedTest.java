@@ -1,5 +1,6 @@
 package com.example.ffmpegmcp;
 
+import com.example.ffmpegmcp.util.TestRequestUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import no.lau.mcp.ffmpeg.FFmpegExecutor;
@@ -64,44 +65,11 @@ public class FFmpegMcpServerAdvancedTest {
 	}
 
 	private void sendNotification(String method, Object params) throws IOException, InterruptedException {
-		McpSchema.JSONRPCNotification notification = new McpSchema.JSONRPCNotification("2.0", method, params);
-		String jsonNotification = objectMapper.writeValueAsString(notification);
-		
-		clientToServer.write((jsonNotification + "\n").getBytes());
-		clientToServer.flush();
-		
-		Thread.sleep(50);
+		TestRequestUtils.sendNotification(method, params, clientToServer);
 	}
 
 	private String sendRequestAndWaitForResponse(String method, Object params, String id) throws IOException, InterruptedException {
-		McpSchema.JSONRPCRequest request = new McpSchema.JSONRPCRequest("2.0", method, id, params);
-		String jsonRequest = objectMapper.writeValueAsString(request);
-
-		serverOutput.reset();
-
-		clientToServer.write((jsonRequest + "\n").getBytes());
-		clientToServer.flush();
-
-		long startTime = System.currentTimeMillis();
-		long timeoutMillis = 500;
-
-		while (serverOutput.size() == 0 && System.currentTimeMillis() - startTime < timeoutMillis) {
-			Thread.sleep(50);
-		}
-
-		if (serverOutput.size() == 0) {
-			throw new IOException("Timeout waiting for server response. serverOutput is empty after " + timeoutMillis + "ms for request: " + jsonRequest);
-		}
-
-		while (System.currentTimeMillis() - startTime < timeoutMillis) {
-			byte[] bytes = serverOutput.toByteArray();
-			if (bytes.length > 0 && bytes[bytes.length - 1] == '\n') {
-				break;
-			}
-			Thread.sleep(50);
-		}
-
-		return new String(serverOutput.toByteArray()).trim();
+		return TestRequestUtils.sendRequestAndWaitForResponse(method, params, id, clientToServer, serverOutput, 500);
 	}
 
 	@Test

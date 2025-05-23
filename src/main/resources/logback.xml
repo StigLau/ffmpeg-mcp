@@ -1,12 +1,11 @@
 <configuration>
-    <!-- Console appender -->
-    <!--
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <!-- Console appender that outputs to STDERR for MCP compatibility -->
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    -->
 
     <!-- File appender -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -25,11 +24,16 @@
     </appender>
 
     <!-- Set the default log level and attach appenders -->
-    <root level="ERROR">
+    <root level="INFO">
         <appender-ref ref="FILE" />
-        <!-- appender-ref ref="CONSOLE" /-->
+        <appender-ref ref="STDERR" />
     </root>
 
     <!-- Set specific log levels for your packages -->
-    <logger name="no.lau" level="ERROR" />
+    <logger name="no.lau" level="INFO" />
+    
+    <!-- Reduce noise from libraries -->
+    <logger name="io.modelcontextprotocol" level="WARN" />
+    <logger name="reactor" level="WARN" />
+    <logger name="org.springframework" level="WARN" />
 </configuration>
