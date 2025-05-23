@@ -1,3 +1,16 @@
+## For silencing logs, in mcp startup:
+"-Dlogback.configurationFile=/tmp/logback-silent.xml",
+
+'''
+/tmp/logback-silent.xml
+<configuration>
+<root level="ERROR">
+<!-- No appenders = no output -->
+</root>
+</configuration>
+'''
+
+
 Recommendations for testing the MCP server:
 
 # Create named pipes for bidirectional communication
