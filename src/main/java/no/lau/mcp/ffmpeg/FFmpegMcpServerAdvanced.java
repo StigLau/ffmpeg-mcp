@@ -158,8 +158,8 @@ public class FFmpegMcpServerAdvanced {
 			// Replace any video references in the command
 			String result = ffmpeg.doffMPEGStuff(cmd);
 
-			// Build a successful result
-			return CallToolResult.builder().addTextContent(result).isError(false).build();
+			// Build a successful result - ensure content is safe for JSON
+			return CallToolResult.builder().addTextContent(sanitizeForJson(result)).isError(false).build();
 		}
 		catch (IllegalArgumentException e) {
 			// Client error (invalid command)
@@ -176,8 +176,7 @@ public class FFmpegMcpServerAdvanced {
 		}
 		catch (Exception e) {
 			// Unexpected error
-			log.error("Unexpected error: {}", e.getMessage());
-			e.printStackTrace();
+			log.error("Unexpected error: {}", e.getMessage(), e);
 			return CallToolResult.builder().addTextContent("Unexpected error: " + e.getMessage()).isError(true).build();
 		}
 	}
@@ -194,7 +193,7 @@ public class FFmpegMcpServerAdvanced {
 		boolean isError = true;
 		try {
 			String rezz = ffmpeg.informationFromVideo(videoRef);
-			textContent = "Video Information for " + videoRef + ":\n" + rezz;
+			textContent = "Video Information for " + videoRef + ":\n" + sanitizeForJson(rezz);
 			isError = false;
 		} catch (FileNotFoundException e) {
 			textContent = "Video reference not found: " + videoRef;
@@ -363,5 +362,31 @@ public class FFmpegMcpServerAdvanced {
 			Thread.currentThread().interrupt();
 			log.error("Server interrupted: {}", e.getMessage());
 		}
+	}
+	
+	/**
+	 * Sanitize content for safe inclusion in JSON responses.
+	 * Handles common problematic characters that could break JSON parsing.
+	 */
+	private static String sanitizeForJson(String content) {
+		if (content == null) {
+			return "";
+		}
+		
+		// Limit content length to prevent huge responses
+		if (content.length() > 10000) {
+			content = content.substring(0, 10000) + "\n... (output truncated)";
+		}
+		
+		// Replace problematic characters that could break JSON
+		return content
+			.replace("\\", "\\\\")  // Escape backslashes
+			.replace("\"", "\\\"")  // Escape quotes
+			.replace("\r\n", "\n")  // Normalize line endings
+			.replace("\r", "\n")    // Convert CR to LF
+			.replace("\u0000", "")  // Remove null characters
+			.replace("\u0008", "")  // Remove backspace
+			.replace("\u000c", "")  // Remove form feed
+			.trim();               // Remove leading/trailing whitespace
 	}
 }
