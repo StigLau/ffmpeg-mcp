@@ -28,22 +28,31 @@ public class DefaultFFmpegExecutor implements FFmpegExecutor {
         Process p = pb.start();
 
         StringBuilder resultBuilder = new StringBuilder();
+        StringBuilder stderrBuilder = new StringBuilder();
+        
         // Try-with-resources to ensure streams are closed
         try (BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
              BufferedReader stdError = new BufferedReader(new InputStreamReader(p.getErrorStream()))) {
 
             String s;
             while ((s = stdInput.readLine()) != null) {
-                resultBuilder.append(s).append(System.lineSeparator());
-                // Printing to console, to keep end user updated
-                System.out.print(s + "\r"); // Overwrite line
-                System.out.print(s);        // Print line
+                resultBuilder.append(s).append("\n");
+                // Printing to console, to keep end user updated (use STDERR to avoid polluting JSON-RPC)
+                // System.err.println(s);
             }
 
-            resultBuilder.append(System.lineSeparator()).append("--- STDERR ---").append(System.lineSeparator());
             while ((s = stdError.readLine()) != null) {
-                resultBuilder.append(s).append(System.lineSeparator());
+                stderrBuilder.append(s).append("\n");
+                // System.err.println("STDERR: " + s);
             }
+        }
+        
+        // Only include stderr if there was any content
+        if (stderrBuilder.length() > 0) {
+            if (resultBuilder.length() > 0) {
+                resultBuilder.append("\n--- STDERR ---\n");
+            }
+            resultBuilder.append(stderrBuilder.toString());
         }
 
         try {
@@ -51,7 +60,7 @@ public class DefaultFFmpegExecutor implements FFmpegExecutor {
             if (exitCode != 0) {
                 // Optionally log or include exit code in a more structured error
                 // For now, the stderr content should indicate the failure
-                System.err.println("FFmpeg process exited with code: " + exitCode);
+                // System.err.println("FFmpeg process exited with code: " + exitCode);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

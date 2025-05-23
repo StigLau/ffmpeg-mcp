@@ -1,10 +1,13 @@
 package no.lau.mcp.ffmpeg;
 
 import no.lau.mcp.file.FileManager;
+import no.lau.mcp.file.FileManagerUtils;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 public class FFmpegWrapper {
 
@@ -28,8 +31,9 @@ public class FFmpegWrapper {
 		//System.err.println("Executing FFmpeg command (args only): " + commandArguments);
 
 		// Execute the command through the injected executor
-		//TODO Replace actual fileref like /tmp/vids/sources/wZ5.mp4 with the videoRef !!
-		return this.executor.execute(commandArguments);
+		String output = this.executor.execute(commandArguments);
+
+		return FileManagerUtils.sanitizeOutput(output, fileManager.videoReferences());
 	}
 
 	/**
@@ -43,9 +47,11 @@ public class FFmpegWrapper {
 	}
 
 	public String informationFromVideo(String videoRef) throws IOException {
-		Path resolvedVideoPath = fileManager.listVideoReferences().get(videoRef);
+		Path resolvedVideoPath = fileManager.videoReferences().get(videoRef);
 		if(resolvedVideoPath != null) {
-			return executeDirectCommand("-i " + resolvedVideoPath);
+			String output = executeDirectCommand("-i " + resolvedVideoPath);
+			
+			return FileManagerUtils.sanitizeOutput(output, fileManager.videoReferences());
 		} else {
 			throw new FileNotFoundException(videoRef);
 		}

@@ -22,7 +22,7 @@ public interface FileManager {
      * Lists all video references managed by this FileManager.
      * @return A map of video reference IDs to their paths
      */
-    Map<String, Path> listVideoReferences();
+    Map<String, Path> videoReferences();
 
     /**
      * Replace video references in the command with their actual paths.
@@ -30,13 +30,7 @@ public interface FileManager {
      * @return The command with resolved video references
      */
     String replaceVideoReferences(String command);
-    
-    /**
-     * Gets the map of target video references.
-     * @return The map of target video references
-     */
-    Map<String, Path> getTargetVideoReferences();
-    
+
     /**
      * Adds or updates a target video reference.
      * @param id The video reference ID

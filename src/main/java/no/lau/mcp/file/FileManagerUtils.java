@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -61,5 +62,33 @@ public final class FileManagerUtils {
         }
         // If we still have {{videoref}}, use the default replacement from FFmpegWrapper
         return command;
+    }
+    
+    /**
+     * Sanitize output by replacing actual file paths with their corresponding video references.
+     * This improves security by not exposing actual file system paths in the output.
+     * 
+     * @param output The FFmpeg output containing file paths
+     * @param videoReferences Map of video reference IDs to their paths
+     * @return Sanitized output with file paths replaced by {{videoRef}}
+     */
+    public static String sanitizeOutput(String output, Map<String, Path> videoReferences) {
+        if (output == null || output.isEmpty() || videoReferences.isEmpty()) {
+            return output;
+        }
+        
+        String sanitized = output;
+        for (Entry<String, Path> entry : videoReferences.entrySet()) {
+            String videoRef = entry.getKey();
+            Path path = entry.getValue();
+            
+            // Replace the absolute path with the videoRef placeholder
+            if (path != null) {
+                String absolutePath = path.toAbsolutePath().toString();
+                sanitized = sanitized.replace(absolutePath, "{{" + videoRef + "}}");
+            }
+        }
+        
+        return sanitized;
     }
 }
