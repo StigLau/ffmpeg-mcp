@@ -2,8 +2,10 @@ package com.example.ffmpegmcp.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import io.modelcontextprotocol.spec.McpSchema;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -11,6 +13,7 @@ import java.util.UUID;
 public class TestRequestUtils {
 
     static final ObjectWriter defaultWriter = new ObjectMapper().writerWithDefaultPrettyPrinter();
+    static final ObjectMapper objectMapper = new ObjectMapper();
 
     public static String generateId() {
         return UUID.randomUUID().toString().substring(0, 8);
@@ -156,5 +159,87 @@ public class TestRequestUtils {
         request.put("params", params);
 
         return defaultWriter.writeValueAsString(request);
+    }
+
+    /**
+     * Send a JSON-RPC notification to the MCP server.
+     * 
+     * @param method The notification method name
+     * @param params The notification parameters (can be null)
+     * @param outputStream The output stream to write to (typically clientToServer)
+     * @throws IOException if writing to the stream fails
+     * @throws InterruptedException if the thread is interrupted during sleep
+     */
+    public static void sendNotification(String method, Object params, OutputStream outputStream) 
+            throws IOException, InterruptedException {
+        McpSchema.JSONRPCNotification notification = new McpSchema.JSONRPCNotification("2.0", method, params);
+        String jsonNotification = objectMapper.writeValueAsString(notification);
+
+        outputStream.write((jsonNotification + "\n").getBytes());
+        outputStream.flush();
+
+        Thread.sleep(50); // Give server time to process notification
+    }
+
+    /**
+     * Send a JSON-RPC request and wait for response with timeout.
+     * 
+     * @param method The request method name
+     * @param params The request parameters (can be null)
+     * @param id The request ID
+     * @param clientToServer Output stream to send request
+     * @param serverOutput Input stream to read response from
+     * @param timeoutMillis Timeout in milliseconds (default: 5000)
+     * @return The server response as a string
+     * @throws IOException if communication fails or timeout occurs
+     * @throws InterruptedException if thread is interrupted
+     */
+    public static String sendRequestAndWaitForResponse(String method, Object params, String id,
+            OutputStream clientToServer, java.io.ByteArrayOutputStream serverOutput,
+            long timeoutMillis) throws IOException, InterruptedException {
+        
+        McpSchema.JSONRPCRequest request = new McpSchema.JSONRPCRequest("2.0", method, id, params);
+        String jsonRequest = objectMapper.writeValueAsString(request);
+
+        serverOutput.reset(); // Clear previous response
+
+        clientToServer.write((jsonRequest + "\n").getBytes());
+        clientToServer.flush();
+
+        long startTime = System.currentTimeMillis();
+
+        while (serverOutput.size() == 0 && System.currentTimeMillis() - startTime < timeoutMillis) {
+            Thread.sleep(50); // Poll
+        }
+
+        if (serverOutput.size() == 0) {
+            throw new IOException("Timeout waiting for server response (no data). Request: " + jsonRequest);
+        }
+
+        while (System.currentTimeMillis() - startTime < timeoutMillis) {
+            byte[] bytes = serverOutput.toByteArray();
+            if (bytes.length > 0 && bytes[bytes.length - 1] == '\n') {
+                break; // Full response received
+            }
+            Thread.sleep(50); // Poll for newline
+        }
+
+        byte[] finalBytes = serverOutput.toByteArray();
+        if (finalBytes.length == 0) { // Should have been caught by the first loop
+            throw new IOException("Server response is empty. Request: " + jsonRequest);
+        }
+        if (finalBytes[finalBytes.length - 1] != '\n') {
+            System.err.println("Warning: Response might be incomplete or not newline-terminated. Request: " + jsonRequest + " Response: " + new String(finalBytes));
+        }
+        return new String(finalBytes).trim();
+    }
+
+    /**
+     * Send a JSON-RPC request and wait for response with default 5 second timeout.
+     */
+    public static String sendRequestAndWaitForResponse(String method, Object params, String id,
+            OutputStream clientToServer, java.io.ByteArrayOutputStream serverOutput)
+            throws IOException, InterruptedException {
+        return sendRequestAndWaitForResponse(method, params, id, clientToServer, serverOutput, 5000);
     }
 }
