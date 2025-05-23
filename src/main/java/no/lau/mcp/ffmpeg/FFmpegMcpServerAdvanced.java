@@ -217,7 +217,7 @@ public class FFmpegMcpServerAdvanced {
 		//log.info("calling list_registered_videos {}", args);
 		log.debug("calling list_registered_videos with args: {}", args);
 		try {
-			Set<String> vidIds = ffmpeg.fileManager().listVideoReferences().keySet();
+			Set<String> vidIds = ffmpeg.fileManager().videoReferences().keySet();
 
 			CallToolResult.Builder builder =  CallToolResult.builder();
 			for (String vidId : vidIds) {

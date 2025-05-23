@@ -19,7 +19,7 @@ public class FileManagerFake implements FileManager {
     }
 
     @Override
-    public Map<String, Path> listVideoReferences() {
+    public Map<String, Path> videoReferences() {
         return new HashMap<>(targetVideoReferences);
     }
 
@@ -35,11 +35,7 @@ public class FileManagerFake implements FileManager {
         return FileManagerUtils.replaceVideoReferences(command, targetVideoReferences);
     }
     
-    @Override
-    public Map<String, Path> getTargetVideoReferences() {
-        return new HashMap<>(targetVideoReferences);
-    }
-    
+
     @Override
     public void addTargetVideoReference(String id, Path path) {
         targetVideoReferences.put(id, path);
